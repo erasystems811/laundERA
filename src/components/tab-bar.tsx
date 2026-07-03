@@ -31,6 +31,17 @@ const TABS: Tab[] = [
     ),
   },
   {
+    href: "/dashboard/inventory",
+    label: "Inventory",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 8l9-4 9 4-9 4-9-4z" />
+        <path d="M3 8v8l9 4 9-4V8" />
+        <path d="M12 12v8" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/customers",
     label: "Customers",
     icon: (
