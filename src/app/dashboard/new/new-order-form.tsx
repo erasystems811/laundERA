@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ServiceIcon } from "@/components/service-icon";
 import { formatNaira } from "@/lib/format";
-import { createOrder } from "./actions";
+import { createOrder, searchCustomers, type CustomerHit } from "./actions";
 
 type Service = { id: string; name: string; icon: string; price: number };
-type Customer = { id: string; name: string; phone: string; preferences: string | null };
 
-export function NewOrderForm({ services, customers }: { services: Service[]; customers: Customer[] }) {
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [addingNew, setAddingNew] = useState(customers.length === 0);
+export function NewOrderForm({ services, hasCustomers }: { services: Service[]; hasCustomers: boolean }) {
+  const [addingNew, setAddingNew] = useState(!hasCustomers);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<CustomerHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerHit | null>(null);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newPrefs, setNewPrefs] = useState("");
@@ -22,7 +24,27 @@ export function NewOrderForm({ services, customers }: { services: Service[]; cus
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
+  const customerId = selectedCustomer?.id ?? null;
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced customer search — only fetches matches, never the whole table.
+  useEffect(() => {
+    if (addingNew || selectedCustomer) return;
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(async () => {
+      const hits = await searchCustomers(query);
+      setResults(hits);
+      setSearching(false);
+    }, 250);
+    return () => {
+      if (debounce.current) clearTimeout(debounce.current);
+    };
+  }, [query, addingNew, selectedCustomer]);
 
   const subtotal = useMemo(
     () => services.reduce((sum, s) => sum + (quantities[s.id] ?? 0) * Number(s.price), 0),
@@ -40,8 +62,10 @@ export function NewOrderForm({ services, customers }: { services: Service[]; cus
     setQuantities((p) => ({ ...p, [id]: Math.max(0, (p[id] ?? 0) + delta) }));
   }
 
-  function pickCustomer(c: Customer) {
-    setCustomerId(c.id);
+  function pickCustomer(c: CustomerHit) {
+    setSelectedCustomer(c);
+    setResults([]);
+    setQuery("");
     if (!droppedBy) setDroppedBy(c.name);
   }
 
@@ -79,7 +103,7 @@ export function NewOrderForm({ services, customers }: { services: Service[]; cus
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Customer</p>
             <button
               type="button"
-              onClick={() => { setAddingNew((v) => !v); setCustomerId(null); }}
+              onClick={() => { setAddingNew((v) => !v); setSelectedCustomer(null); setQuery(""); setResults([]); }}
               className="text-sm font-semibold text-teal-700"
             >
               {addingNew ? "← Choose existing" : "+ New customer"}
@@ -92,33 +116,55 @@ export function NewOrderForm({ services, customers }: { services: Service[]; cus
               <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} inputMode="numeric" placeholder="Phone number" className={inputCls} />
               <textarea value={newPrefs} onChange={(e) => setNewPrefs(e.target.value)} rows={2} placeholder="Care preferences (e.g. no starch, fold don't hang)" className="w-full resize-none rounded-xl border border-white/60 bg-white/40 px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted-2 focus:border-teal-500" />
             </div>
-          ) : (
+          ) : selectedCustomer ? (
             <>
-              <div className="grid max-h-52 gap-1 overflow-y-auto sm:grid-cols-2">
-                {customers.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => pickCustomer(c)}
-                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors ${customerId === c.id ? "bg-teal-500/15" : "hover:bg-white/40"}`}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-medium text-ink">{c.name}</p>
-                      <p className="text-xs text-muted">{c.phone}</p>
-                    </div>
-                    {customerId === c.id && (
-                      <svg className="h-5 w-5 flex-shrink-0 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    )}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold text-ink">{selectedCustomer.name}</p>
+                  <p className="text-xs text-muted">{selectedCustomer.phone}</p>
+                </div>
+                <button type="button" onClick={() => setSelectedCustomer(null)} className="text-sm font-medium text-teal-700">
+                  Change
+                </button>
               </div>
-              {selectedCustomer?.preferences && (
+              {selectedCustomer.preferences && (
                 <div className="mt-3 rounded-xl border border-amber-300/50 bg-amber-50/60 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Care preference</p>
                   <p className="mt-0.5 text-sm text-ink">{selectedCustomer.preferences}</p>
                 </div>
               )}
             </>
+          ) : (
+            <div className="relative">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by name or phone…"
+                className={inputCls}
+                autoComplete="off"
+              />
+              {query.trim().length >= 2 && (
+                <div className="mt-2 flex flex-col gap-1 rounded-xl border border-white/60 bg-white/50 p-1 backdrop-blur">
+                  {searching && <p className="px-3 py-2 text-sm text-muted">Searching…</p>}
+                  {!searching && results.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-muted">No match. Use “+ New customer” above.</p>
+                  )}
+                  {results.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => pickCustomer(c)}
+                      className="flex items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/60"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-medium text-ink">{c.name}</p>
+                        <p className="text-xs text-muted">{c.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

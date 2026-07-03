@@ -3,6 +3,22 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+export type CustomerHit = { id: string; name: string; phone: string; preferences: string | null };
+
+// Search customers by name or phone — returns only matches (scales to any customer count).
+export async function searchCustomers(query: string): Promise<CustomerHit[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("customers")
+    .select("id, name, phone, preferences")
+    .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
+    .order("name")
+    .limit(12);
+  return (data ?? []) as CustomerHit[];
+}
+
 type CreateOrderInput = {
   customerId: string | null;
   newCustomer: { name: string; phone: string; preferences: string } | null;

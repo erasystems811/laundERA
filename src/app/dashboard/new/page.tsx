@@ -11,15 +11,14 @@ export default async function NewOrderPage() {
     .eq("active", true)
     .order("name");
 
-  const { data: customers } = await supabase
+  const { count } = await supabase
     .from("customers")
-    .select("id, name, phone, preferences")
-    .order("name");
+    .select("id", { count: "exact", head: true });
 
   return (
     <div>
       <PageHeader back="/dashboard" title="New Order" subtitle="Log clothes brought in" />
-      <NewOrderForm services={services ?? []} customers={customers ?? []} />
+      <NewOrderForm services={services ?? []} hasCustomers={(count ?? 0) > 0} />
     </div>
   );
 }
