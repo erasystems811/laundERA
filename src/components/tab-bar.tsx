@@ -20,6 +20,17 @@ const TABS: Tab[] = [
     ),
   },
   {
+    href: "/dashboard/money",
+    label: "Money",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="6" width="18" height="12" rx="2.5" />
+        <circle cx="12" cy="12" r="2.5" />
+        <path d="M6 9v.01M18 15v.01" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/customers",
     label: "Customers",
     icon: (
