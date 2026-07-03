@@ -7,6 +7,7 @@ type CreateOrderInput = {
   customerId: string | null;
   newCustomer: { name: string; phone: string } | null;
   items: { serviceId: string; quantity: number }[];
+  discount: { type: "percentage" | "fixed"; value: number } | null;
 };
 
 export async function createOrder(input: CreateOrderInput) {
@@ -52,16 +53,30 @@ export async function createOrder(input: CreateOrderInput) {
 
   if (servicesError) throw servicesError;
 
-  const total = input.items.reduce((sum, item) => {
+  const subtotal = input.items.reduce((sum, item) => {
     const service = services!.find((s) => s.id === item.serviceId);
     return sum + (service ? Number(service.price) * item.quantity : 0);
   }, 0);
+
+  let discountAmount = 0;
+  if (input.discount && input.discount.value > 0) {
+    discountAmount =
+      input.discount.type === "percentage"
+        ? (subtotal * input.discount.value) / 100
+        : input.discount.value;
+  }
+  // Never let a discount push the total below zero.
+  discountAmount = Math.min(discountAmount, subtotal);
+  const total = subtotal - discountAmount;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
       business_id: staff.business_id,
       customer_id: customerId,
+      subtotal,
+      discount_type: input.discount && input.discount.value > 0 ? input.discount.type : null,
+      discount_value: input.discount && input.discount.value > 0 ? input.discount.value : 0,
       total,
       created_by: user!.id,
     })

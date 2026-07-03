@@ -20,14 +20,26 @@ export function NewOrderForm({
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [discountValue, setDiscountValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () =>
       services.reduce((sum, s) => sum + (quantities[s.id] ?? 0) * Number(s.price), 0),
     [services, quantities]
   );
+
+  const discountAmount = useMemo(() => {
+    const v = Number(discountValue) || 0;
+    if (v <= 0) return 0;
+    const amt = discountType === "percentage" ? (subtotal * v) / 100 : v;
+    return Math.min(amt, subtotal);
+  }, [discountType, discountValue, subtotal]);
+
+  const total = subtotal - discountAmount;
 
   function bump(serviceId: string, delta: number) {
     setQuantities((prev) => {
@@ -58,6 +70,8 @@ export function NewOrderForm({
           customerId: addingNew ? null : customerId,
           newCustomer: addingNew ? { name: newName, phone: newPhone } : null,
           items,
+          discount:
+            Number(discountValue) > 0 ? { type: discountType, value: Number(discountValue) } : null,
         });
       } catch {
         setError("Something went wrong. Try again.");
@@ -179,11 +193,79 @@ export function NewOrderForm({
           })}
         </div>
 
-        <div className="glass-card flex items-baseline justify-between rounded-2xl px-5 py-4">
-          <span className="text-sm text-muted">Total</span>
-          <span className="font-mono text-2xl font-bold tabular-nums text-teal-900">
-            {formatNaira(total)}
-          </span>
+        <div className="glass-card rounded-2xl px-5 py-4">
+          {!discountOpen ? (
+            <button
+              type="button"
+              onClick={() => setDiscountOpen(true)}
+              className="mb-3 text-sm font-medium text-teal-700"
+            >
+              + Add discount
+            </button>
+          ) : (
+            <div className="mb-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Discount
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDiscountOpen(false);
+                    setDiscountValue("");
+                  }}
+                  className="text-xs font-medium text-muted"
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex overflow-hidden rounded-lg border border-white/60">
+                  <button
+                    type="button"
+                    onClick={() => setDiscountType("percentage")}
+                    className={`px-3 text-sm font-medium ${discountType === "percentage" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}
+                  >
+                    %
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDiscountType("fixed")}
+                    className={`px-3 text-sm font-medium ${discountType === "fixed" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}
+                  >
+                    ₦
+                  </button>
+                </div>
+                <input
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={discountType === "percentage" ? "e.g. 10" : "e.g. 500"}
+                  className="h-10 flex-1 rounded-lg border border-white/60 bg-white/40 px-3 font-mono text-[15px] tabular-nums text-ink outline-none placeholder:text-muted-2 focus:border-teal-500"
+                />
+              </div>
+            </div>
+          )}
+
+          {discountAmount > 0 && (
+            <>
+              <div className="flex items-baseline justify-between py-1 text-sm text-muted">
+                <span>Subtotal</span>
+                <span className="font-mono tabular-nums">{formatNaira(subtotal)}</span>
+              </div>
+              <div className="flex items-baseline justify-between py-1 text-sm text-teal-700">
+                <span>Discount</span>
+                <span className="font-mono tabular-nums">−{formatNaira(discountAmount)}</span>
+              </div>
+            </>
+          )}
+
+          <div className="flex items-baseline justify-between border-t border-ink/10 pt-3">
+            <span className="text-sm text-muted">Total</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-teal-900">
+              {formatNaira(total)}
+            </span>
+          </div>
         </div>
 
         {error && (

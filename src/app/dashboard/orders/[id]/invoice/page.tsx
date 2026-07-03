@@ -14,7 +14,7 @@ export default async function InvoicePage({
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, created_at, customers(name, phone), businesses(name)")
+    .select("id, total, subtotal, discount_value, created_at, customers(name, phone), businesses(name)")
     .eq("id", id)
     .single();
 
@@ -41,6 +41,8 @@ export default async function InvoicePage({
   const customer = order.customers as unknown as { name: string; phone: string } | null;
   const business = order.businesses as unknown as { name: string } | null;
   const total = Number(order.total);
+  const subtotal = Number(order.subtotal);
+  const discount = subtotal - total;
   const paid = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
   const balance = total - paid;
 
@@ -91,6 +93,18 @@ export default async function InvoicePage({
         </div>
 
         <div className="flex flex-col gap-1.5 border-t border-dashed border-ink/15 pt-4 text-sm">
+          {discount > 0 && (
+            <>
+              <div className="flex justify-between text-muted">
+                <span>Subtotal</span>
+                <span className="font-mono tabular-nums">{formatNaira(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-teal-700">
+                <span>Discount</span>
+                <span className="font-mono tabular-nums">−{formatNaira(discount)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-muted">
             <span>Total</span>
             <span className="font-mono tabular-nums">{formatNaira(total)}</span>

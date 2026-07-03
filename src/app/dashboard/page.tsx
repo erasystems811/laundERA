@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatNaira, STAGE_LABEL, STAGE_PILL_CLASS, type OrderStatus } from "@/lib/format";
-import { logOut } from "./actions";
+import { PageHeader } from "@/components/page-header";
 
-export default async function DashboardPage() {
+export default async function OrdersPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -11,7 +11,7 @@ export default async function DashboardPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("name, role, business_id, businesses(name)")
+    .select("name, businesses(name)")
     .eq("id", user!.id)
     .single();
 
@@ -23,31 +23,32 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="glass-card mx-4 mt-4 flex items-center justify-between rounded-3xl px-6 py-4 sm:mx-6 sm:mt-6">
-        <div>
-          <p className="text-sm text-muted">{business?.name ?? "LaundERA"}</p>
-          <p className="text-lg font-semibold tracking-tight text-teal-900">
-            Welcome, {staff?.name}
-          </p>
-        </div>
-        <form action={logOut}>
-          <button
-            type="submit"
-            className="h-11 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-medium text-ink backdrop-blur-sm hover:bg-white/60"
+    <div className="flex flex-1 flex-col pb-28">
+      <PageHeader
+        eyebrow={business?.name ?? "LaundERA"}
+        title="Orders"
+        action={
+          <Link
+            href="/dashboard/new"
+            className="btn-primary flex h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-semibold text-white"
           >
-            Log out
-          </button>
-        </form>
-      </header>
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New
+          </Link>
+        }
+      />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-32 pt-6 sm:px-6">
-        <h1 className="mb-4 px-1 text-xl font-semibold tracking-tight text-teal-900">Orders</h1>
-
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 sm:px-6">
         {!orders?.length && (
-          <p className="glass-card rounded-2xl px-5 py-8 text-center text-muted">
-            No orders yet. Tap &ldquo;New Order&rdquo; to create the first one.
-          </p>
+          <div className="glass-card rounded-3xl px-6 py-12 text-center">
+            <p className="text-lg font-semibold text-teal-900">No orders yet</p>
+            <p className="mt-1 text-sm text-muted">
+              Tap <span className="font-medium text-teal-700">New</span> to log the first order.
+            </p>
+          </div>
         )}
 
         <div className="flex flex-col gap-2">
@@ -93,26 +94,6 @@ export default async function DashboardPage() {
           })}
         </div>
       </main>
-
-      <div className="fixed inset-x-4 bottom-4 mx-auto max-w-2xl sm:inset-x-6">
-        <Link
-          href="/dashboard/new"
-          className="btn-primary flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-medium text-white"
-        >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New Order
-        </Link>
-      </div>
     </div>
   );
 }
