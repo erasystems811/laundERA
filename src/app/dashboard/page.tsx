@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { IN_STORE_STAGES, formatNaira, type OrderStatus } from "@/lib/format";
+import { formatNaira, type OrderStatus } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { PipelineBoard, type BoardOrder } from "./pipeline-board";
 
@@ -18,10 +18,18 @@ export default async function OrdersPage() {
   const business = staff?.businesses as unknown as { status: string } | null;
   const readOnly = business?.status === "paused";
 
+  // KPIs are aggregated in the database (scales to any order count).
+  const { data: statRows } = await supabase.rpc("dashboard_stats");
+  const kpi = statRows?.[0] ?? { active_orders: 0, garments: 0, ready_count: 0, owed: 0 };
+
+  // The board only carries work-in-progress + recently delivered — never the full history.
+  const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
   const { data: ordersRaw } = await supabase
     .from("orders")
     .select("id, status, total, dropped_off_by, created_at, customers(name), order_items(quantity)")
-    .order("created_at", { ascending: false });
+    .or(`status.neq.delivered,created_at.gte.${twoDaysAgo}`)
+    .order("created_at", { ascending: false })
+    .limit(400);
 
   const orderIds = (ordersRaw ?? []).map((o) => o.id);
   const { data: payments } = orderIds.length
@@ -47,16 +55,11 @@ export default async function OrdersPage() {
     };
   });
 
-  const activeOrders = orders.filter((o) => o.status !== "delivered");
-  const inStore = orders.filter((o) => IN_STORE_STAGES.includes(o.status)).length;
-  const readyCount = orders.filter((o) => o.status === "ready").length;
-  const owed = orders.reduce((s, o) => s + Math.max(0, o.balance), 0);
-
   const stats = [
-    { label: "Active orders", value: String(activeOrders.length) },
-    { label: "Garments in shop", value: String(inStore) },
-    { label: "Ready for pickup", value: String(readyCount) },
-    { label: "Owed to you", value: formatNaira(owed) },
+    { label: "Active orders", value: String(kpi.active_orders) },
+    { label: "Garments in shop", value: String(kpi.garments) },
+    { label: "Ready for pickup", value: String(kpi.ready_count) },
+    { label: "Owed to you", value: formatNaira(Number(kpi.owed)) },
   ];
 
   return (

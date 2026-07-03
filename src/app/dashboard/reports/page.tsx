@@ -9,45 +9,40 @@ const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","
 export default async function ReportsPage() {
   const supabase = await createClient();
 
-  const { data: orders } = await supabase.from("orders").select("id, status, total, created_at, customer_id");
-  const { data: items } = await supabase.from("order_items").select("service_name, quantity, unit_price");
-  const { data: payments } = await supabase.from("payments").select("amount, created_at");
-  const { data: expensesRaw } = await supabase
-    .from("expenses").select("id, name, amount, kind, cadence, incurred_on").order("created_at", { ascending: false });
-  const { data: customers } = await supabase.from("customers").select("id, name");
-  const { data: businessRow } = await supabase.from("businesses").select("created_at").limit(1).single();
-
-  const expenses = (expensesRaw ?? []).map((e) => ({ ...e, amount: Number(e.amount) }));
-
   const now = new Date();
   const year = now.getFullYear();
   const cm = now.getMonth();
-  const businessStart = businessRow ? new Date(businessRow.created_at) : now;
+
+  // All heavy aggregation runs in the database — the app only receives rolled-up rows.
+  const [scalarsR, monthlyR, serviceR, stageR, topR, owingR, expensesR, bizR] = await Promise.all([
+    supabase.rpc("reports_scalars"),
+    supabase.rpc("reports_monthly", { p_year: year }),
+    supabase.rpc("revenue_by_service"),
+    supabase.rpc("orders_stage_counts"),
+    supabase.rpc("top_customers", { p_limit: 8 }),
+    supabase.rpc("owing_customers", { p_limit: 20 }),
+    supabase.from("expenses").select("id, name, amount, kind, cadence, incurred_on").order("created_at", { ascending: false }),
+    supabase.from("businesses").select("created_at").limit(1).single(),
+  ]);
+
+  const s = scalarsR.data?.[0] ?? {};
+  const monthly = (monthlyR.data ?? []) as { month: number; collected: number; once_expense: number }[];
+  const expenses = (expensesR.data ?? []).map((e) => ({ ...e, amount: Number(e.amount) }));
+
+  const businessStart = bizR.data ? new Date(bizR.data.created_at) : now;
   const startMonth = businessStart.getFullYear() < year ? 0 : businessStart.getMonth();
 
   const recurring = expenses.filter((e) => e.kind === "recurring");
-  const recurringPerMonth = recurring.reduce((s, e) => s + (e.cadence === "yearly" ? e.amount / 12 : e.amount), 0);
+  const recurringPerMonth = recurring.reduce((a, e) => a + (e.cadence === "yearly" ? e.amount / 12 : e.amount), 0);
 
   const collected = Array(12).fill(0);
-  const onceExpense = Array(12).fill(0);
-  for (const p of payments ?? []) {
-    const d = new Date(p.created_at);
-    if (d.getFullYear() === year) collected[d.getMonth()] += Number(p.amount);
+  const once = Array(12).fill(0);
+  for (const m of monthly) {
+    collected[m.month - 1] = Number(m.collected);
+    once[m.month - 1] = Number(m.once_expense);
   }
-  for (const e of expenses) {
-    if (e.kind === "once" && e.incurred_on) {
-      const [y, mo] = e.incurred_on.split("-").map(Number);
-      if (y === year) onceExpense[mo - 1] += e.amount;
-    }
-  }
-  const monthExpense = (m: number) => recurringPerMonth + onceExpense[m];
+  const monthExpense = (m: number) => recurringPerMonth + once[m];
 
-  // Totals
-  const totalBilled = (orders ?? []).reduce((s, o) => s + Number(o.total), 0);
-  const totalCollected = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
-  const outstanding = totalBilled - totalCollected;
-
-  // This month
   const moneyIn = collected[cm];
   const moneyOut = monthExpense(cm);
   const profit = moneyIn - moneyOut;
@@ -55,52 +50,16 @@ export default async function ReportsPage() {
   const toBreakEven = Math.max(0, moneyOut - moneyIn);
   const progress = moneyOut > 0 ? Math.min(100, (moneyIn / moneyOut) * 100) : 0;
 
-  // Charts
   const monthsRange = Array.from({ length: cm - startMonth + 1 }, (_, i) => startMonth + i);
   const inOut = monthsRange.map((m) => ({ month: MON[m], In: collected[m], Out: monthExpense(m) }));
   const profitByMonth = monthsRange.map((m) => ({ month: MON[m], Profit: collected[m] - monthExpense(m) }));
   const monthRows = monthsRange.map((m) => ({ month: MONTHS[m], inc: collected[m], out: monthExpense(m), profit: collected[m] - monthExpense(m) }));
 
-  // Revenue by service (billed)
-  const svc = new Map<string, number>();
-  for (const it of items ?? []) svc.set(it.service_name, (svc.get(it.service_name) ?? 0) + Number(it.quantity) * Number(it.unit_price));
-  const serviceRevenue = [...svc.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  const stageCounts = new Map<string, number>();
+  for (const r of (stageR.data ?? []) as { stage: string; count: number }[]) stageCounts.set(r.stage, Number(r.count));
+  const ordersByStage = ORDER_STAGES.map((st) => ({ stage: STAGE_LABEL[st as OrderStatus], count: stageCounts.get(st) ?? 0 }));
 
-  // Today / week collected
-  const startToday = new Date(year, cm, now.getDate()).getTime();
-  const startWeek = startToday - 6 * 86400000;
-  let collectedToday = 0, collectedWeek = 0;
-  for (const p of payments ?? []) {
-    const t = new Date(p.created_at).getTime();
-    if (t >= startToday) collectedToday += Number(p.amount);
-    if (t >= startWeek) collectedWeek += Number(p.amount);
-  }
-
-  // Orders
-  const totalOrders = orders?.length ?? 0;
-  const avgOrderValue = totalOrders ? totalBilled / totalOrders : 0;
-  const stageCount = new Map<string, number>();
-  for (const o of orders ?? []) stageCount.set(o.status, (stageCount.get(o.status) ?? 0) + 1);
-  const ordersByStage = ORDER_STAGES.map((s) => ({ stage: STAGE_LABEL[s as OrderStatus], count: stageCount.get(s) ?? 0 }));
-
-  // Customers
-  const paidByOrder = new Map<string, number>();
-  // recompute per-order paid needs order_id; refetch lightweight
-  const { data: pay2 } = await supabase.from("payments").select("order_id, amount");
-  for (const p of pay2 ?? []) paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) ?? 0) + Number(p.amount));
-  const custSpend = new Map<string, { spend: number; balance: number }>();
-  const { data: ord2 } = await supabase.from("orders").select("id, customer_id, total");
-  for (const o of ord2 ?? []) {
-    const cur = custSpend.get(o.customer_id) ?? { spend: 0, balance: 0 };
-    cur.spend += Number(o.total);
-    cur.balance += Number(o.total) - (paidByOrder.get(o.id) ?? 0);
-    custSpend.set(o.customer_id, cur);
-  }
-  const nameById = new Map((customers ?? []).map((c) => [c.id, c.name]));
-  const custRows = [...custSpend.entries()].map(([id, v]) => ({ name: nameById.get(id) ?? "Unknown", ...v }));
-  const topCustomers = [...custRows].sort((a, b) => b.spend - a.spend).slice(0, 8);
-  const owingCustomers = custRows.filter((c) => c.balance > 0).sort((a, b) => b.balance - a.balance);
-
+  const owed = Number(s.owed_total ?? 0);
   const thisMonthOnce = expenses.filter((e) => {
     if (e.kind !== "once" || !e.incurred_on) return false;
     const [y, mo] = e.incurred_on.split("-").map(Number);
@@ -109,15 +68,22 @@ export default async function ReportsPage() {
 
   const data: ReportsData = {
     monthLabel: MONTHS[cm], year,
-    moneyIn, moneyOut, profit, owed: Math.max(0, outstanding),
+    moneyIn, moneyOut, profit, owed,
     inProfit, toBreakEven, progress,
-    inOut, profitByMonth, serviceRevenue,
-    collectedToday, collectedWeek, collectedMonth: collected[cm], outstanding: Math.max(0, outstanding),
+    inOut, profitByMonth,
+    serviceRevenue: (serviceR.data ?? []).map((r: { name: string; value: number }) => ({ name: r.name, value: Number(r.value) })),
+    collectedToday: Number(s.collected_today ?? 0),
+    collectedWeek: Number(s.collected_week ?? 0),
+    collectedMonth: collected[cm],
+    outstanding: owed,
     monthRows,
-    totalOrders, avgOrderValue, ordersByStage,
-    totalCustomers: customers?.length ?? 0,
-    owingCount: owingCustomers.length,
-    topCustomers, owingCustomers,
+    totalOrders: Number(s.total_orders ?? 0),
+    avgOrderValue: Number(s.avg_value ?? 0),
+    ordersByStage,
+    totalCustomers: Number(s.total_customers ?? 0),
+    owingCount: Number(s.owing_count ?? 0),
+    topCustomers: (topR.data ?? []).map((r: { name: string; spend: number }) => ({ name: r.name, spend: Number(r.spend), balance: 0 })),
+    owingCustomers: (owingR.data ?? []).map((r: { name: string; balance: number }) => ({ name: r.name, balance: Number(r.balance) })),
     recurring, thisMonthOnce,
   };
 
