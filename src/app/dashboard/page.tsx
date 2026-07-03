@@ -16,16 +16,18 @@ export default async function DashboardPage() {
   const business = staff?.businesses as unknown as { name: string } | null;
 
   return (
-    <div className="flex flex-1 flex-col bg-zinc-50">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex flex-1 flex-col">
+      <header className="glass-card mx-4 mt-4 flex items-center justify-between rounded-3xl px-6 py-4 sm:mx-6 sm:mt-6">
         <div>
-          <p className="text-sm text-zinc-500">{business?.name ?? "LaundERA"}</p>
-          <p className="text-lg font-semibold text-zinc-900">Welcome, {staff?.name}</p>
+          <p className="text-sm text-muted">{business?.name ?? "LaundERA"}</p>
+          <p className="text-lg font-semibold tracking-tight text-teal-900">
+            Welcome, {staff?.name}
+          </p>
         </div>
         <form action={logOut}>
           <button
             type="submit"
-            className="h-11 rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+            className="h-11 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-medium text-ink backdrop-blur-sm hover:bg-white/60"
           >
             Log out
           </button>
@@ -33,8 +35,8 @@ export default async function DashboardPage() {
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6">
-        <p className="text-zinc-500">
-          Logged in as <span className="font-medium text-zinc-900">{staff?.role}</span>. Order
+        <p className="text-muted">
+          Logged in as <span className="font-medium text-teal-700">{staff?.role}</span>. Order
           Management is next.
         </p>
       </main>

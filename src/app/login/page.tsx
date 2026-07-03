@@ -8,16 +8,16 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 px-6">
-      <div className="w-full max-w-sm">
+    <div className="flex flex-1 items-center justify-center px-6">
+      <div className="glass-card w-full max-w-sm rounded-[32px] p-8">
         <div className="mb-10 text-center">
-          <h1 className="text-2xl font-semibold text-zinc-900">LaundERA</h1>
-          <p className="mt-1 text-zinc-500">Log in to your account</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-teal-900">LaundERA</h1>
+          <p className="mt-1 text-muted">Log in to your account</p>
         </div>
 
         <form action={logIn} className="flex flex-col gap-4">
           <div>
-            <label htmlFor="phone" className="mb-2 block text-sm font-medium text-zinc-700">
+            <label htmlFor="phone" className="mb-2 block text-sm font-medium text-ink">
               Phone number
             </label>
             <input
@@ -28,12 +28,12 @@ export default async function LoginPage({
               autoComplete="tel"
               required
               placeholder="0803 000 0000"
-              className="h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-lg text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+              className="h-14 w-full rounded-2xl border border-white/60 bg-white/40 px-4 text-lg text-ink outline-none backdrop-blur-sm placeholder:text-muted-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
             />
           </div>
 
           <div>
-            <label htmlFor="pin" className="mb-2 block text-sm font-medium text-zinc-700">
+            <label htmlFor="pin" className="mb-2 block text-sm font-medium text-ink">
               PIN
             </label>
             <input
@@ -44,19 +44,19 @@ export default async function LoginPage({
               autoComplete="current-password"
               required
               placeholder="••••••"
-              className="h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-lg tracking-widest text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+              className="h-14 w-full rounded-2xl border border-white/60 bg-white/40 px-4 text-lg tracking-widest text-ink outline-none backdrop-blur-sm placeholder:text-muted-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
             />
           </div>
 
           {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="rounded-xl bg-red-50/80 px-4 py-3 text-sm text-red-700">
               Phone number or PIN is incorrect. Try again.
             </p>
           )}
 
           <button
             type="submit"
-            className="mt-2 h-14 w-full rounded-2xl bg-zinc-900 text-lg font-medium text-white transition-colors hover:bg-zinc-800"
+            className="btn-primary mt-2 h-14 w-full rounded-2xl text-lg font-medium text-white transition-transform active:scale-[0.99]"
           >
             Log in
           </button>

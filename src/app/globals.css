@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #08211f;
+  --muted: #4c716d;
+  --muted-2: #7fa19d;
+
+  --teal-900: #0a3733;
+  --teal-700: #0d7d72;
+  --teal-600: #0f9b8e;
+  --teal-500: #14b8a6;
+  --teal-400: #4fd1c1;
+  --teal-100: #d3f2ee;
+
+  --glass: rgba(255, 255, 255, 0.52);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-hair: rgba(8, 33, 31, 0.08);
+
+  --background: #eef7f6;
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-teal-900: var(--teal-900);
+  --color-teal-700: var(--teal-700);
+  --color-teal-600: var(--teal-600);
+  --color-teal-500: var(--teal-500);
+  --color-teal-400: var(--teal-400);
+  --color-teal-100: var(--teal-100);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  isolation: isolate;
+}
+
+.app-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(48% 38% at 12% 8%, rgba(20, 184, 166, 0.55), transparent 70%),
+    radial-gradient(42% 34% at 88% 14%, rgba(56, 189, 248, 0.35), transparent 70%),
+    radial-gradient(55% 45% at 78% 88%, rgba(13, 125, 114, 0.45), transparent 70%),
+    radial-gradient(40% 34% at 8% 92%, rgba(94, 234, 212, 0.4), transparent 70%),
+    linear-gradient(180deg, #eaf7f5 0%, #eef8f7 100%);
+  filter: blur(60px) saturate(140%);
+  transform: scale(1.1);
+}
+
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 20px 50px -18px rgba(10, 55, 51, 0.35),
+    0 2px 8px rgba(10, 55, 51, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.btn-primary {
+  background: linear-gradient(155deg, var(--teal-500), var(--teal-700));
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 24px -8px rgba(13, 125, 114, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
