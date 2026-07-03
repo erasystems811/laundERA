@@ -12,13 +12,16 @@ export default async function SettingsPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("name, business_id, businesses(name, whatsapp_number)")
+    .select("name, business_id, businesses(name, whatsapp_number, address, invoice_footer, logo_url)")
     .eq("id", user!.id)
     .single();
 
   const business = staff?.businesses as unknown as {
     name: string;
     whatsapp_number: string | null;
+    address: string | null;
+    invoice_footer: string | null;
+    logo_url: string | null;
   } | null;
 
   const { data: services } = await supabase
@@ -36,6 +39,9 @@ export default async function SettingsPage() {
         <BusinessInfo
           initialName={business?.name ?? ""}
           initialWhatsapp={business?.whatsapp_number ?? ""}
+          initialAddress={business?.address ?? ""}
+          initialFooter={business?.invoice_footer ?? ""}
+          logoUrl={business?.logo_url ?? null}
         />
 
         <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">

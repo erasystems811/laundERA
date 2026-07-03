@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 async function businessId() {
   const supabase = await createClient();
@@ -39,13 +40,52 @@ export async function updateService(
   revalidatePath("/dashboard/settings");
 }
 
-export async function updateBusiness(input: { name: string; whatsapp_number: string }) {
+export async function updateBusiness(input: {
+  name: string;
+  whatsapp_number: string;
+  address: string;
+  invoice_footer: string;
+}) {
   const { supabase, businessId: bid } = await businessId();
   if (!bid) throw new Error("No business");
   const { error } = await supabase
     .from("businesses")
-    .update({ name: input.name, whatsapp_number: input.whatsapp_number })
+    .update({
+      name: input.name,
+      whatsapp_number: input.whatsapp_number,
+      address: input.address,
+      invoice_footer: input.invoice_footer,
+    })
     .eq("id", bid);
   if (error) throw error;
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+}
+
+export async function uploadLogo(formData: FormData) {
+  const { businessId: bid } = await businessId();
+  if (!bid) throw new Error("No business");
+
+  const file = formData.get("logo") as File | null;
+  if (!file || file.size === 0) throw new Error("No file");
+
+  const admin = createAdminClient();
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const path = `${bid}/logo-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await admin.storage
+    .from("logos")
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = admin.storage.from("logos").getPublicUrl(path);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ logo_url: data.publicUrl })
+    .eq("id", bid);
+  if (error) throw error;
+
   revalidatePath("/dashboard/settings");
 }

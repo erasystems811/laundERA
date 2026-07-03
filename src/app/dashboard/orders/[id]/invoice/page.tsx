@@ -14,7 +14,7 @@ export default async function InvoicePage({
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, subtotal, discount_value, created_at, customers(name, phone), businesses(name)")
+    .select("id, total, subtotal, discount_value, created_at, customers(name, phone), businesses(name, address, invoice_footer, logo_url)")
     .eq("id", id)
     .single();
 
@@ -39,7 +39,12 @@ export default async function InvoicePage({
     .eq("order_id", id);
 
   const customer = order.customers as unknown as { name: string; phone: string } | null;
-  const business = order.businesses as unknown as { name: string } | null;
+  const business = order.businesses as unknown as {
+    name: string;
+    address: string | null;
+    invoice_footer: string | null;
+    logo_url: string | null;
+  } | null;
   const total = Number(order.total);
   const subtotal = Number(order.subtotal);
   const discount = subtotal - total;
@@ -56,12 +61,19 @@ export default async function InvoicePage({
       </div>
 
       <div className="glass-card w-full max-w-xl rounded-3xl p-8 print:rounded-none print:border-none print:bg-white print:shadow-none">
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <p className="text-xl font-semibold tracking-tight text-teal-900">{business?.name}</p>
-            <p className="text-sm text-muted">Invoice {invoice.invoice_number}</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            {business?.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={business.logo_url} alt="Logo" className="h-12 w-12 rounded-lg object-contain" />
+            )}
+            <div>
+              <p className="text-xl font-semibold tracking-tight text-teal-900">{business?.name}</p>
+              {business?.address && <p className="text-xs text-muted">{business.address}</p>}
+              <p className="mt-0.5 text-sm text-muted">Invoice {invoice.invoice_number}</p>
+            </div>
           </div>
-          <p className="text-sm text-muted">
+          <p className="flex-shrink-0 text-sm text-muted">
             {new Date(invoice.created_at).toLocaleDateString("en-NG", {
               day: "numeric",
               month: "short",
@@ -118,6 +130,12 @@ export default async function InvoicePage({
             <span className="font-mono tabular-nums">{formatNaira(balance)}</span>
           </div>
         </div>
+
+        {business?.invoice_footer && (
+          <p className="mt-8 border-t border-ink/10 pt-4 text-center text-sm text-muted">
+            {business.invoice_footer}
+          </p>
+        )}
       </div>
     </div>
   );
