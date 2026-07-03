@@ -5,9 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 
 type CreateOrderInput = {
   customerId: string | null;
-  newCustomer: { name: string; phone: string } | null;
+  newCustomer: { name: string; phone: string; preferences: string } | null;
   items: { serviceId: string; quantity: number }[];
   discount: { type: "percentage" | "fixed"; value: number } | null;
+  droppedOffBy: string;
 };
 
 export async function createOrder(input: CreateOrderInput) {
@@ -34,6 +35,7 @@ export async function createOrder(input: CreateOrderInput) {
         business_id: staff.business_id,
         name: input.newCustomer.name,
         phone: input.newCustomer.phone,
+        preferences: input.newCustomer.preferences || null,
       })
       .select("id")
       .single();
@@ -78,6 +80,7 @@ export async function createOrder(input: CreateOrderInput) {
       discount_type: input.discount && input.discount.value > 0 ? input.discount.type : null,
       discount_value: input.discount && input.discount.value > 0 ? input.discount.value : 0,
       total,
+      dropped_off_by: input.droppedOffBy?.trim() || null,
       created_by: user!.id,
     })
     .select("id")

@@ -23,11 +23,20 @@ export function OrderActions({
   const [showPayment, setShowPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "transfer" | "card">("cash");
+  const [collecting, setCollecting] = useState(false);
+  const [collector, setCollector] = useState("");
 
   const next = NEXT_STAGE[status];
 
   function handleAdvance() {
-    startTransition(() => advanceStage(orderId, status));
+    if (next === "delivered" && !collecting) {
+      setCollecting(true);
+      return;
+    }
+    startTransition(async () => {
+      await advanceStage(orderId, status, next === "delivered" ? collector : undefined);
+      setCollecting(false);
+    });
   }
 
   // One tap: the customer paid the whole outstanding balance.
@@ -134,15 +143,32 @@ export function OrderActions({
         </button>
       </div>
 
-      {next && (
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={handleAdvance}
-          className="btn-primary h-14 w-full rounded-2xl text-lg font-medium text-white disabled:opacity-60"
-        >
-          {isPending ? "Updating…" : `Mark ${STAGE_LABEL[next]}`}
-        </button>
+      {next && collecting ? (
+        <div className="glass-card flex flex-col gap-2 rounded-2xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Who collected it?</p>
+          <input
+            value={collector}
+            onChange={(e) => setCollector(e.target.value)}
+            placeholder="Name of who picked up"
+            className="h-11 w-full rounded-xl border border-teal-500 bg-white/60 px-4 text-[15px] text-ink outline-none placeholder:text-muted-2"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setCollecting(false)} className="h-11 flex-1 rounded-xl bg-white/50 text-sm font-medium text-muted">Cancel</button>
+            <button type="button" disabled={isPending || !collector.trim()} onClick={handleAdvance} className="btn-primary h-11 flex-1 rounded-xl text-sm font-semibold text-white disabled:opacity-60">Mark Delivered</button>
+          </div>
+        </div>
+      ) : (
+        next && (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleAdvance}
+            className="btn-primary h-14 w-full rounded-2xl text-lg font-medium text-white disabled:opacity-60"
+          >
+            {isPending ? "Updating…" : `Mark ${STAGE_LABEL[next]}`}
+          </button>
+        )
       )}
     </div>
   );

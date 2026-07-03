@@ -5,12 +5,22 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { NEXT_STAGE, type OrderStatus } from "@/lib/format";
 
-export async function advanceStage(orderId: string, currentStatus: OrderStatus) {
+export async function advanceStage(
+  orderId: string,
+  currentStatus: OrderStatus,
+  pickedUpBy?: string
+) {
   const next = NEXT_STAGE[currentStatus];
   if (!next) return;
 
+  const update: { status: OrderStatus; picked_up_by?: string } = { status: next };
+  // Record who collected the order at the moment it's marked delivered.
+  if (next === "delivered" && pickedUpBy?.trim()) {
+    update.picked_up_by = pickedUpBy.trim();
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("orders").update({ status: next }).eq("id", orderId);
+  const { error } = await supabase.from("orders").update(update).eq("id", orderId);
   if (error) throw error;
 
   revalidatePath(`/dashboard/orders/${orderId}`);

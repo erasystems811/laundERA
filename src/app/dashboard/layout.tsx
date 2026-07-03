@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { TabBar } from "@/components/tab-bar";
+import { Shell } from "@/components/shell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -7,26 +7,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
     data: { user },
   } = await supabase.auth.getUser();
 
+  let businessName = "LaundERA";
+  let staffName = "";
   let paused = false;
+
   if (user) {
     const { data: staff } = await supabase
       .from("staff")
-      .select("businesses(status)")
+      .select("name, businesses(name, status)")
       .eq("id", user.id)
       .single();
-    const business = staff?.businesses as unknown as { status: string } | null;
+    const business = staff?.businesses as unknown as { name: string; status: string } | null;
+    businessName = business?.name || "LaundERA";
+    staffName = staff?.name ?? "";
     paused = business?.status === "paused";
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      {paused && (
-        <div className="sticky top-0 z-50 bg-amber-500/90 px-4 py-2.5 text-center text-sm font-medium text-white backdrop-blur">
-          Your account is paused — view only. Please contact ERA Systems.
-        </div>
-      )}
+    <Shell
+      businessName={businessName}
+      staffName={staffName}
+      paused={paused}
+      logo={<span className="text-sm font-bold">{businessName.slice(0, 1).toUpperCase()}</span>}
+    >
       {children}
-      <TabBar />
-    </div>
+    </Shell>
   );
 }

@@ -42,77 +42,67 @@ export default async function CustomerProfilePage({
   const balance = billed - paid;
 
   return (
-    <div className="flex flex-1 flex-col pb-10">
-      <PageHeader back="/dashboard/customers" title={customer.name} />
+    <div>
+      <PageHeader back="/dashboard/customers" title={customer.name} subtitle={customer.phone} />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-2 sm:px-6">
-        <p className="mb-4 px-1 text-sm text-muted">{customer.phone}</p>
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">Total spend</p>
+          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-teal-900">{formatNaira(billed)}</p>
+        </div>
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">Orders</p>
+          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-teal-900">{orders?.length ?? 0}</p>
+        </div>
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">{balance > 0 ? "Owing" : "Balance"}</p>
+          <p className={`mt-1 font-mono text-2xl font-bold tabular-nums ${balance > 0 ? "text-red-600" : "text-green-700"}`}>{formatNaira(balance)}</p>
+        </div>
+      </div>
 
-        <div className="glass-card mb-4 rounded-2xl p-5">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="font-mono text-lg font-bold tabular-nums text-teal-900">
-                {formatNaira(billed)}
-              </p>
-              <p className="mt-0.5 text-xs text-muted">Total spend</p>
-            </div>
-            <div>
-              <p className="font-mono text-lg font-bold tabular-nums text-teal-900">
-                {orders?.length ?? 0}
-              </p>
-              <p className="mt-0.5 text-xs text-muted">Orders</p>
-            </div>
-            <div>
-              <p
-                className={`font-mono text-lg font-bold tabular-nums ${
-                  balance > 0 ? "text-red-600" : "text-green-700"
-                }`}
-              >
-                {formatNaira(balance)}
-              </p>
-              <p className="mt-0.5 text-xs text-muted">{balance > 0 ? "Owing" : "Balance"}</p>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="glass-card overflow-hidden rounded-2xl">
+            <p className="border-b border-ink/10 px-5 py-4 text-sm font-semibold text-ink">Order history</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ink/10 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-2">
+                    <th className="px-5 py-3">Date</th>
+                    <th className="px-5 py-3 text-right">Amount</th>
+                    <th className="px-5 py-3 text-right">Stage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders?.map((o) => {
+                    const status = o.status as OrderStatus;
+                    return (
+                      <tr key={o.id} className="border-b border-ink/5 last:border-b-0 hover:bg-white/30">
+                        <td className="px-5 py-3">
+                          <Link href={`/dashboard/orders/${o.id}`} className="text-ink hover:text-teal-700">
+                            {new Date(o.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">{formatNaira(Number(o.total))}</td>
+                        <td className="px-5 py-3 text-right">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${STAGE_PILL_CLASS[status]}`}>{STAGE_LABEL[status]}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!orders?.length && (
+                    <tr><td colSpan={3} className="px-5 py-8 text-center text-sm text-muted">No orders yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
-        <div className="mb-4">
+        <div>
           <PreferencesEditor customerId={customer.id} initial={customer.preferences ?? ""} />
         </div>
-
-        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-          Order history
-        </p>
-        <div className="flex flex-col gap-2">
-          {orders?.map((o) => {
-            const status = o.status as OrderStatus;
-            return (
-              <Link
-                key={o.id}
-                href={`/dashboard/orders/${o.id}`}
-                className="glass-card flex items-center justify-between rounded-2xl px-4 py-3 transition-transform active:scale-[0.99]"
-              >
-                <div>
-                  <p className="text-[15px] font-semibold text-ink">
-                    {formatNaira(Number(o.total))}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {new Date(o.created_at).toLocaleDateString("en-NG", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${STAGE_PILL_CLASS[status]}`}
-                >
-                  {STAGE_LABEL[status]}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

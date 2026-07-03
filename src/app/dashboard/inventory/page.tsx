@@ -5,16 +5,26 @@ import { InventoryTabs } from "./inventory-tabs";
 
 export default async function InventoryPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: staff } = await supabase
+    .from("staff")
+    .select("businesses(status)")
+    .eq("id", user!.id)
+    .single();
+  const business = staff?.businesses as unknown as { status: string } | null;
+  const readOnly = business?.status === "paused";
 
   const { data: supplies } = await supabase
     .from("supply_items")
     .select("id, name, unit, quantity, low_threshold")
     .order("name");
 
-  // Clothes in custody = live view derived from in-store orders.
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, status, customers(name), order_items(quantity)")
+    .select("id, status, dropped_off_by, customers(name), order_items(quantity)")
     .in("status", IN_STORE_STAGES);
 
   const byStage = { collected: 0, processing: 0, ready: 0 };
@@ -26,10 +36,8 @@ export default async function InventoryPage() {
     total += count;
     if (status in byStage) byStage[status as keyof typeof byStage] += count;
     const customer = o.customers as unknown as { name: string } | null;
-    return { id: o.id, customerName: customer?.name ?? "Unknown", count, status };
+    return { id: o.id, customerName: customer?.name ?? "Unknown", count, status, droppedOffBy: o.dropped_off_by };
   });
-
-  // Show the fullest orders first.
   orderRows.sort((a, b) => b.count - a.count);
 
   const supplyItems = (supplies ?? []).map((s) => ({
@@ -39,14 +47,9 @@ export default async function InventoryPage() {
   }));
 
   return (
-    <div className="flex flex-1 flex-col pb-28">
-      <PageHeader title="Inventory" />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 sm:px-6">
-        <InventoryTabs
-          supplies={supplyItems}
-          clothes={{ total, byStage, orders: orderRows }}
-        />
-      </main>
+    <div>
+      <PageHeader title="Inventory" subtitle="Supplies you stock, and the clothes in your care" />
+      <InventoryTabs supplies={supplyItems} clothes={{ total, byStage, orders: orderRows }} readOnly={readOnly} />
     </div>
   );
 }

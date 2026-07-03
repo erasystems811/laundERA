@@ -31,14 +31,10 @@ export async function addRecurringExpense(input: {
     cadence: input.cadence,
   });
   if (error) throw error;
-  revalidatePath("/dashboard/money");
+  revalidatePath("/dashboard/reports");
 }
 
-export async function addOnceExpense(input: {
-  name: string;
-  amount: number;
-  incurredOn: string; // yyyy-mm-dd
-}) {
+export async function addOnceExpense(input: { name: string; amount: number; incurredOn: string }) {
   const { supabase, businessId } = await ctx();
   if (!businessId) throw new Error("No business");
   const { error } = await supabase.from("expenses").insert({
@@ -49,7 +45,7 @@ export async function addOnceExpense(input: {
     incurred_on: input.incurredOn,
   });
   if (error) throw error;
-  revalidatePath("/dashboard/money");
+  revalidatePath("/dashboard/reports");
 }
 
 export async function updateExpense(
@@ -59,12 +55,12 @@ export async function updateExpense(
   const supabase = await createClient();
   const { error } = await supabase.from("expenses").update(input).eq("id", id);
   if (error) throw error;
-  revalidatePath("/dashboard/money");
+  revalidatePath("/dashboard/reports");
 }
 
 export async function deleteExpense(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("expenses").delete().eq("id", id);
   if (error) throw error;
-  revalidatePath("/dashboard/money");
+  revalidatePath("/dashboard/reports");
 }

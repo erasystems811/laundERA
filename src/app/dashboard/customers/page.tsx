@@ -6,18 +6,12 @@ import { PageHeader } from "@/components/page-header";
 export default async function CustomersPage() {
   const supabase = await createClient();
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, phone")
-    .order("name");
-
+  const { data: customers } = await supabase.from("customers").select("id, name, phone").order("name");
   const { data: orders } = await supabase.from("orders").select("id, customer_id, total");
   const { data: payments } = await supabase.from("payments").select("order_id, amount");
 
   const paidByOrder = new Map<string, number>();
-  for (const p of payments ?? []) {
-    paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) ?? 0) + Number(p.amount));
-  }
+  for (const p of payments ?? []) paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) ?? 0) + Number(p.amount));
 
   const stats = new Map<string, { billed: number; paid: number; count: number }>();
   for (const o of orders ?? []) {
@@ -31,58 +25,65 @@ export default async function CustomersPage() {
   const rows = (customers ?? [])
     .map((c) => {
       const s = stats.get(c.id) ?? { billed: 0, paid: 0, count: 0 };
-      return { ...c, balance: s.billed - s.paid, count: s.count };
+      return { ...c, balance: s.billed - s.paid, spend: s.billed, count: s.count };
     })
-    .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
+    .sort((a, b) => b.balance - a.balance || b.spend - a.spend || a.name.localeCompare(b.name));
+
+  const totalOwed = rows.reduce((s, c) => s + Math.max(0, c.balance), 0);
 
   return (
-    <div className="flex flex-1 flex-col pb-28">
-      <PageHeader title="Customers" />
+    <div>
+      <PageHeader
+        title="Customers"
+        subtitle={`${rows.length} customer${rows.length === 1 ? "" : "s"} · ${formatNaira(totalOwed)} owed to you`}
+      />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 sm:px-6">
-        {!rows.length && (
-          <div className="glass-card rounded-3xl px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-teal-900">No customers yet</p>
-            <p className="mt-1 text-sm text-muted">
-              Customers are added automatically when you create their first order.
-            </p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2">
-          {rows.map((c) => (
-            <Link
-              key={c.id}
-              href={`/dashboard/customers/${c.id}`}
-              className="glass-card flex items-center justify-between rounded-2xl px-4 py-3.5 transition-transform active:scale-[0.99]"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-500/25 to-teal-500/10 text-sm font-semibold text-teal-700">
-                  {c.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold text-ink">{c.name}</p>
-                  <p className="text-xs text-muted">{c.phone}</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                {c.balance > 0 ? (
-                  <>
-                    <p className="font-mono text-sm font-semibold tabular-nums text-red-600">
-                      {formatNaira(c.balance)}
-                    </p>
-                    <p className="text-xs text-muted">owing</p>
-                  </>
-                ) : (
-                  <span className="inline-flex rounded-full bg-green-100/70 px-2.5 py-1 text-xs font-semibold text-green-700">
-                    Paid up
-                  </span>
-                )}
-              </div>
-            </Link>
-          ))}
+      {!rows.length ? (
+        <div className="glass-card rounded-3xl px-6 py-16 text-center">
+          <p className="text-lg font-semibold text-teal-900">No customers yet</p>
+          <p className="mt-1 text-sm text-muted">Customers are added automatically with their first order.</p>
         </div>
-      </main>
+      ) : (
+        <div className="glass-card overflow-hidden rounded-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-ink/10 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-2">
+                  <th className="px-5 py-3">Customer</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3 text-right">Orders</th>
+                  <th className="px-5 py-3 text-right">Total spend</th>
+                  <th className="px-5 py-3 text-right">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((c) => (
+                  <tr key={c.id} className="border-b border-ink/5 last:border-b-0 hover:bg-white/30">
+                    <td className="px-5 py-3">
+                      <Link href={`/dashboard/customers/${c.id}`} className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-500/25 to-teal-500/10 text-xs font-semibold text-teal-700">
+                          {c.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <span className="font-medium text-ink hover:text-teal-700">{c.name}</span>
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3 text-muted">{c.phone}</td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">{c.count}</td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">{formatNaira(c.spend)}</td>
+                    <td className="px-5 py-3 text-right">
+                      {c.balance > 0 ? (
+                        <span className="font-mono font-semibold tabular-nums text-red-600">{formatNaira(c.balance)}</span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-green-100/70 px-2.5 py-1 text-xs font-semibold text-green-700">Paid up</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

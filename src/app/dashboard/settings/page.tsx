@@ -30,35 +30,36 @@ export default async function SettingsPage() {
     .order("name");
 
   return (
-    <div className="flex flex-1 flex-col pb-28">
-      <PageHeader title="Settings" />
+    <div>
+      <PageHeader title="Settings" subtitle="Your services, prices, and branding" />
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 pt-4 sm:px-6">
-        <ServicesManager services={services ?? []} />
-
-        <BusinessInfo
-          initialName={business?.name ?? ""}
-          initialWhatsapp={business?.whatsapp_number ?? ""}
-          initialAddress={business?.address ?? ""}
-          initialFooter={business?.invoice_footer ?? ""}
-          logoUrl={business?.logo_url ?? null}
-        />
-
-        <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">
-          <div>
-            <p className="text-[15px] font-medium text-ink">{staff?.name}</p>
-            <p className="text-xs text-muted">Signed in</p>
-          </div>
-          <form action={logOut}>
-            <button
-              type="submit"
-              className="h-10 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-medium text-ink hover:bg-white/60"
-            >
-              Log out
-            </button>
-          </form>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <ServicesManager services={services ?? []} />
         </div>
-      </main>
+
+        <div className="flex flex-col gap-5">
+          <BusinessInfo
+            initialName={business?.name ?? ""}
+            initialWhatsapp={business?.whatsapp_number ?? ""}
+            initialAddress={business?.address ?? ""}
+            initialFooter={business?.invoice_footer ?? ""}
+            logoUrl={business?.logo_url ?? null}
+          />
+
+          <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">
+            <div>
+              <p className="text-[15px] font-medium text-ink">{staff?.name}</p>
+              <p className="text-xs text-muted">Signed in</p>
+            </div>
+            <form action={logOut}>
+              <button type="submit" className="h-10 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-medium text-ink hover:bg-white/60">
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatNaira, STAGE_LABEL, STAGE_PILL_CLASS, type OrderStatus } from "@/lib/format";
+import { IN_STORE_STAGES, formatNaira, type OrderStatus } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { PipelineBoard, type BoardOrder } from "./pipeline-board";
 
 export default async function OrdersPage() {
   const supabase = await createClient();
@@ -11,89 +12,91 @@ export default async function OrdersPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("name, businesses(name)")
+    .select("businesses(status)")
     .eq("id", user!.id)
     .single();
+  const business = staff?.businesses as unknown as { status: string } | null;
+  const readOnly = business?.status === "paused";
 
-  const business = staff?.businesses as unknown as { name: string } | null;
-
-  const { data: orders } = await supabase
+  const { data: ordersRaw } = await supabase
     .from("orders")
-    .select("id, status, total, created_at, customers(name)")
+    .select("id, status, total, dropped_off_by, created_at, customers(name), order_items(quantity)")
     .order("created_at", { ascending: false });
 
+  const orderIds = (ordersRaw ?? []).map((o) => o.id);
+  const { data: payments } = orderIds.length
+    ? await supabase.from("payments").select("order_id, amount").in("order_id", orderIds)
+    : { data: [] };
+  const paidByOrder = new Map<string, number>();
+  for (const p of payments ?? [])
+    paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) ?? 0) + Number(p.amount));
+
+  const orders: BoardOrder[] = (ordersRaw ?? []).map((o) => {
+    const items = (o.order_items as unknown as { quantity: number }[]) ?? [];
+    const customer = o.customers as unknown as { name: string } | null;
+    const total = Number(o.total);
+    return {
+      id: o.id,
+      customerName: customer?.name ?? "Unknown",
+      itemCount: items.reduce((s, it) => s + Number(it.quantity), 0),
+      total,
+      balance: total - (paidByOrder.get(o.id) ?? 0),
+      droppedOffBy: o.dropped_off_by,
+      status: o.status as OrderStatus,
+      createdAt: o.created_at,
+    };
+  });
+
+  const activeOrders = orders.filter((o) => o.status !== "delivered");
+  const inStore = orders.filter((o) => IN_STORE_STAGES.includes(o.status)).length;
+  const readyCount = orders.filter((o) => o.status === "ready").length;
+  const owed = orders.reduce((s, o) => s + Math.max(0, o.balance), 0);
+
+  const stats = [
+    { label: "Active orders", value: String(activeOrders.length) },
+    { label: "Garments in shop", value: String(inStore) },
+    { label: "Ready for pickup", value: String(readyCount) },
+    { label: "Owed to you", value: formatNaira(owed) },
+  ];
+
   return (
-    <div className="flex flex-1 flex-col pb-28">
+    <div>
       <PageHeader
-        eyebrow={business?.name ?? "LaundERA"}
         title="Orders"
+        subtitle="Move each order along as it progresses"
         action={
-          <Link
-            href="/dashboard/new"
-            className="btn-primary flex h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-semibold text-white"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New
-          </Link>
+          !readOnly && (
+            <Link
+              href="/dashboard/new"
+              className="btn-primary flex h-11 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Order
+            </Link>
+          )
         }
       />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 sm:px-6">
-        {!orders?.length && (
-          <div className="glass-card rounded-3xl px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-teal-900">No orders yet</p>
-            <p className="mt-1 text-sm text-muted">
-              Tap <span className="font-medium text-teal-700">New</span> to log the first order.
-            </p>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className="glass-card rounded-2xl p-5">
+            <p className="text-sm text-muted">{s.label}</p>
+            <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-teal-900">{s.value}</p>
           </div>
-        )}
+        ))}
+      </div>
 
-        <div className="flex flex-col gap-2">
-          {orders?.map((order) => {
-            const customer = order.customers as unknown as { name: string } | null;
-            const status = order.status as OrderStatus;
-            return (
-              <Link
-                key={order.id}
-                href={`/dashboard/orders/${order.id}`}
-                className="glass-card flex items-center justify-between rounded-2xl px-4 py-3.5 transition-transform active:scale-[0.99]"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-500/25 to-teal-500/10 text-sm font-semibold text-teal-700">
-                    {customer?.name?.slice(0, 2).toUpperCase() ?? "?"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold text-ink">
-                      {customer?.name ?? "Unknown customer"}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {new Date(order.created_at).toLocaleString("en-NG", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <p className="mb-1.5 font-mono text-sm font-semibold tabular-nums text-teal-900">
-                    {formatNaira(Number(order.total))}
-                  </p>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${STAGE_PILL_CLASS[status]}`}
-                  >
-                    {STAGE_LABEL[status]}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+      {!orders.length ? (
+        <div className="glass-card rounded-3xl px-6 py-16 text-center">
+          <p className="text-lg font-semibold text-teal-900">No orders yet</p>
+          <p className="mt-1 text-sm text-muted">Tap New Order to log the first one.</p>
         </div>
-      </main>
+      ) : (
+        <PipelineBoard orders={orders} readOnly={readOnly} />
+      )}
     </div>
   );
 }
