@@ -5,6 +5,58 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { NEXT_STAGES, TERMINAL_STAGES, type OrderStatus } from "@/lib/format";
 
+// Add more clothes to an existing order (e.g. the customer brought extra after intake).
+// Recomputes subtotal, discount and total; any generated invoice reads live so it updates too.
+export async function addItemsToOrder(
+  orderId: string,
+  items: { serviceId: string; quantity: number }[]
+) {
+  if (!items.length) return;
+  const supabase = await createClient();
+
+  const { data: order, error: orderErr } = await supabase
+    .from("orders")
+    .select("subtotal, discount_type, discount_value")
+    .eq("id", orderId)
+    .single();
+  if (orderErr) throw orderErr;
+
+  const serviceIds = items.map((i) => i.serviceId);
+  const { data: services, error: svcErr } = await supabase
+    .from("services")
+    .select("id, name, price")
+    .in("id", serviceIds);
+  if (svcErr) throw svcErr;
+
+  const newRows = items.map((it) => {
+    const s = services!.find((x) => x.id === it.serviceId)!;
+    return {
+      order_id: orderId,
+      service_id: s.id,
+      service_name: s.name,
+      quantity: it.quantity,
+      unit_price: s.price,
+    };
+  });
+  const { error: insErr } = await supabase.from("order_items").insert(newRows);
+  if (insErr) throw insErr;
+
+  const added = newRows.reduce((sum, r) => sum + r.quantity * Number(r.unit_price), 0);
+  const subtotal = Number(order.subtotal) + added;
+  let discount = 0;
+  if (order.discount_type === "percentage") discount = (subtotal * Number(order.discount_value)) / 100;
+  else if (order.discount_type === "fixed") discount = Number(order.discount_value);
+  discount = Math.min(discount, subtotal);
+  const total = subtotal - discount;
+
+  const { error: updErr } = await supabase.from("orders").update({ subtotal, total }).eq("id", orderId);
+  if (updErr) throw updErr;
+
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/payments");
+}
+
 export async function moveOrderStage(
   orderId: string,
   from: OrderStatus,

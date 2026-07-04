@@ -207,10 +207,20 @@ export function NewOrderForm({ services, hasCustomers }: { services: Service[]; 
           ) : (
             <div className="mt-4 flex gap-2">
               <div className="flex overflow-hidden rounded-lg border border-white/60">
-                <button type="button" onClick={() => setDiscountType("percentage")} className={`px-3 text-sm font-medium ${discountType === "percentage" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}>%</button>
-                <button type="button" onClick={() => setDiscountType("fixed")} className={`px-3 text-sm font-medium ${discountType === "fixed" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}>₦</button>
+                <button type="button" onClick={() => setDiscountType("percentage")} className={`px-3 text-sm font-medium ${discountType === "percentage" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}>% off</button>
+                <button type="button" onClick={() => setDiscountType("fixed")} className={`px-3 text-sm font-medium ${discountType === "fixed" ? "bg-teal-500/20 text-teal-800" : "bg-white/40 text-muted"}`}>₦ off</button>
               </div>
-              <input value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} inputMode="numeric" placeholder={discountType === "percentage" ? "e.g. 10" : "e.g. 500"} className="h-10 flex-1 rounded-lg border border-white/60 bg-white/40 px-3 font-mono text-[15px] tabular-nums text-ink outline-none placeholder:text-muted-2 focus:border-teal-500" />
+              <div className="relative flex-1">
+                {discountType === "fixed" && <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[15px] text-muted">₦</span>}
+                <input
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={discountType === "percentage" ? "10" : "500"}
+                  className={`h-10 w-full rounded-lg border border-white/60 bg-white/40 font-mono text-[15px] tabular-nums text-ink outline-none placeholder:text-muted-2 focus:border-teal-500 ${discountType === "fixed" ? "pl-7 pr-3" : "pl-3 pr-8"}`}
+                />
+                {discountType === "percentage" && <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[15px] text-muted">%</span>}
+              </div>
             </div>
           )}
 

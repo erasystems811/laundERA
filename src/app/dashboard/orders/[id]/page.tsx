@@ -4,6 +4,7 @@ import { formatNaira, STAGE_LABEL, type OrderStatus } from "@/lib/format";
 import { StageTrack } from "@/components/stage-track";
 import { PageHeader } from "@/components/page-header";
 import { OrderActions } from "./order-actions";
+import { AddItems } from "./add-items";
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,6 +29,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .from("order_items")
     .select("id, service_name, quantity, unit_price")
     .eq("order_id", id);
+
+  const { data: services } = readOnly
+    ? { data: [] }
+    : await supabase.from("services").select("id, name, icon, price").eq("active", true).order("name");
 
   const { data: payments } = await supabase
     .from("payments")
@@ -72,6 +77,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <div className="flex justify-between text-muted"><span>Paid</span><span className="font-mono tabular-nums">{formatNaira(paid)}</span></div>
               <div className="flex justify-between text-base font-semibold text-teal-900"><span>Balance</span><span className="font-mono tabular-nums">{formatNaira(balance)}</span></div>
             </div>
+
+            {!readOnly && (
+              <div className="mt-4 border-t border-ink/10 pt-4">
+                <AddItems orderId={order.id} services={services ?? []} />
+              </div>
+            )}
           </div>
 
           <div className="glass-card rounded-2xl p-6">
