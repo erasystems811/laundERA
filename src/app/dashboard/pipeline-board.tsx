@@ -33,14 +33,43 @@ const COLUMN_ACCENT: Record<OrderStatus, string> = {
 };
 
 export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; readOnly: boolean }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? orders.filter(
+        (o) => o.customerName.toLowerCase().includes(q) || String(o.total).includes(q)
+      )
+    : orders;
+
   const grouped = ORDER_STAGES.map((stage) => ({
     stage,
-    orders: orders.filter((o) => o.status === stage),
+    orders: filtered.filter((o) => o.status === stage),
   }));
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
-      {grouped.map(({ stage, orders: colOrders }) => (
+    <>
+      <div className="mb-4 max-w-sm">
+        <div className="relative">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4-4" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search orders by customer…"
+            className="h-11 w-full rounded-xl border border-white/60 bg-white/40 pl-10 pr-4 text-[15px] text-ink outline-none placeholder:text-muted-2 focus:border-teal-500"
+          />
+        </div>
+        {q && (
+          <p className="mt-1.5 px-1 text-xs text-muted">
+            {filtered.length} match{filtered.length === 1 ? "" : "es"} for &ldquo;{query}&rdquo;
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {grouped.map(({ stage, orders: colOrders }) => (
         <div key={stage} className="flex w-72 shrink-0 flex-col">
           <div className="mb-3 flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
@@ -62,8 +91,9 @@ export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; read
             )}
           </div>
         </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }
 
