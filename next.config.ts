@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  experimental: {
+    serverActions: {
+      // Real logo images exceed the 1MB default and were being rejected.
+      bodySizeLimit: "5mb",
+    },
+  },
   images: {
     remotePatterns: [
       {

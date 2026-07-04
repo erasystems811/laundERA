@@ -24,6 +24,7 @@ export function BusinessInfo({
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const dirty =
@@ -49,12 +50,23 @@ export function BusinessInfo({
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setLogoError(null);
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setLogoError("Logo is too large — please use an image under 4MB.");
+      return;
+    }
     const fd = new FormData();
     fd.set("logo", file);
     setUploading(true);
     startTransition(async () => {
       try {
         await uploadLogo(fd);
+      } catch (err) {
+        setLogoError(err instanceof Error ? err.message : "Upload failed. Try again.");
       } finally {
         setUploading(false);
       }
@@ -86,6 +98,7 @@ export function BusinessInfo({
             {uploading ? "Uploading…" : logoUrl ? "Change logo" : "Upload logo"}
           </button>
           <p className="mt-1 text-[11px] text-muted-2">Shows on every invoice</p>
+          {logoError && <p className="mt-1 text-[11px] font-medium text-red-600">{logoError}</p>}
         </div>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
       </div>
