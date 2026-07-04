@@ -50,24 +50,20 @@ export function PaymentAccount({
           onClick={() => setMethod("listen")}
           className={`rounded-xl border p-3 text-left ${method === "listen" ? "border-teal-500 bg-teal-500/10" : "border-white/60 bg-white/30"}`}
         >
-          <p className="text-[15px] font-semibold text-ink">My own account</p>
-          <p className="text-xs text-muted">Customers pay your bank account directly — it shows on every invoice.</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[15px] font-semibold text-ink">My account</p>
+            <span className="rounded-full bg-amber-100/70 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Auto-collect coming</span>
+          </div>
+          <p className="text-xs text-muted">Your account number shows on every invoice so customers pay you directly. Automatic detection (Flutterwave) is being set up.</p>
         </button>
         <button
           type="button"
           onClick={() => setMethod("manual")}
           className={`rounded-xl border p-3 text-left ${method === "manual" ? "border-teal-500 bg-teal-500/10" : "border-white/60 bg-white/30"}`}
         >
-          <p className="text-[15px] font-semibold text-ink">Log manually</p>
+          <p className="text-[15px] font-semibold text-ink">Manual (fallback)</p>
           <p className="text-xs text-muted">Record cash and transfers yourself. No account shown.</p>
         </button>
-        <div className="rounded-xl border border-white/40 bg-white/20 p-3 opacity-70">
-          <div className="flex items-center justify-between">
-            <p className="text-[15px] font-semibold text-ink">Flutterwave instant</p>
-            <span className="rounded-full bg-amber-100/70 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Coming</span>
-          </div>
-          <p className="text-xs text-muted">Auto-detect transfers instantly. Being set up.</p>
-        </div>
       </div>
 
       {method === "listen" && (

@@ -42,13 +42,34 @@ export function InventoryTabs({
   );
 }
 
+function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div className="relative">
+      <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M21 21l-4-4" />
+      </svg>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-11 w-full rounded-xl border border-white/60 bg-white/40 pl-10 pr-4 text-[15px] text-ink outline-none placeholder:text-muted-2 focus:border-teal-500"
+      />
+    </div>
+  );
+}
+
 function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("pcs");
   const [qty, setQty] = useState("");
   const [low, setLow] = useState("");
+  const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const q = query.trim().toLowerCase();
+  const shown = q ? items.filter((i) => i.name.toLowerCase().includes(q)) : items;
 
   function add() {
     if (!name.trim()) return;
@@ -84,6 +105,12 @@ function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean 
         </div>
       )}
 
+      {items.length > 0 && (
+        <div className="border-b border-ink/10 p-3">
+          <SearchBox value={query} onChange={setQuery} placeholder="Search supplies…" />
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -96,13 +123,13 @@ function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean 
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {shown.map((item) => (
               <SupplyRow key={item.id} item={item} readOnly={readOnly} isPending={isPending} start={startTransition} />
             ))}
-            {!items.length && (
+            {!shown.length && (
               <tr>
                 <td colSpan={readOnly ? 4 : 5} className="px-5 py-10 text-center text-sm text-muted">
-                  No supplies yet. Add what you use so you never run out.
+                  {items.length ? "No match." : "No supplies yet. Add what you use so you never run out."}
                 </td>
               </tr>
             )}
@@ -151,6 +178,10 @@ function SupplyRow({ item, readOnly, isPending, start }: { item: SupplyItem; rea
 }
 
 function ClothesInStore({ clothes }: { clothes: Clothes }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = q ? clothes.orders.filter((o) => o.customerName.toLowerCase().includes(q)) : clothes.orders;
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -167,7 +198,14 @@ function ClothesInStore({ clothes }: { clothes: Clothes }) {
       </div>
 
       <div className="glass-card overflow-hidden rounded-2xl">
-        <p className="border-b border-ink/10 px-5 py-4 text-sm font-semibold text-ink">Whose clothes are here</p>
+        <div className="flex flex-col gap-3 border-b border-ink/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-ink">Whose clothes are here</p>
+          {clothes.orders.length > 0 && (
+            <div className="sm:w-64">
+              <SearchBox value={query} onChange={setQuery} placeholder="Search by customer…" />
+            </div>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -180,7 +218,7 @@ function ClothesInStore({ clothes }: { clothes: Clothes }) {
               </tr>
             </thead>
             <tbody>
-              {clothes.orders.map((o) => (
+              {shown.map((o) => (
                 <tr key={o.id} className="border-b border-ink/5 align-top last:border-b-0 hover:bg-white/30">
                   <td className="px-5 py-3">
                     <Link href={`/dashboard/orders/${o.id}`} className="font-medium text-ink hover:text-teal-700">{o.customerName}</Link>
@@ -201,8 +239,8 @@ function ClothesInStore({ clothes }: { clothes: Clothes }) {
                   </td>
                 </tr>
               ))}
-              {!clothes.orders.length && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-muted">No clothes in the shop right now.</td></tr>
+              {!shown.length && (
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-muted">{clothes.orders.length ? "No match." : "No clothes in the shop right now."}</td></tr>
               )}
             </tbody>
           </table>
