@@ -158,7 +158,7 @@ export function ReportsView({ data }: { data: ReportsData }) {
 
       {tab === "Expenses" && (
         <div className="grid gap-5 lg:grid-cols-2">
-          <ExpenseManager recurring={data.recurring} thisMonth={data.thisMonthOnce} monthLabel={data.monthLabel} />
+          <ExpenseManager thisMonth={data.thisMonthOnce} monthLabel={data.monthLabel} />
           <Panel title={`Profit & loss · ${data.year}`}>
             <ProfitChart data={data.profitByMonth} />
           </Panel>

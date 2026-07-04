@@ -32,6 +32,7 @@ export async function addRecurringExpense(input: {
   });
   if (error) throw error;
   revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/settings");
 }
 
 export async function addOnceExpense(input: { name: string; amount: number; incurredOn: string }) {
@@ -46,6 +47,7 @@ export async function addOnceExpense(input: { name: string; amount: number; incu
   });
   if (error) throw error;
   revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/settings");
 }
 
 export async function updateExpense(
@@ -56,6 +58,7 @@ export async function updateExpense(
   const { error } = await supabase.from("expenses").update(input).eq("id", id);
   if (error) throw error;
   revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/settings");
 }
 
 export async function deleteExpense(id: string) {
@@ -63,4 +66,5 @@ export async function deleteExpense(id: string) {
   const { error } = await supabase.from("expenses").delete().eq("id", id);
   if (error) throw error;
   revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/settings");
 }

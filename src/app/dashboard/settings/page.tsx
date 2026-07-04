@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { logOut } from "../actions";
 import { ServicesManager } from "./services-manager";
 import { BusinessInfo } from "./business-info";
+import { MonthlyCosts } from "./monthly-costs";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -29,13 +30,21 @@ export default async function SettingsPage() {
     .select("id, name, icon, price, active")
     .order("name");
 
+  const { data: costs } = await supabase
+    .from("expenses")
+    .select("id, name, amount, cadence")
+    .eq("kind", "recurring")
+    .order("created_at", { ascending: false });
+  const recurring = (costs ?? []).map((c) => ({ ...c, amount: Number(c.amount) }));
+
   return (
     <div>
       <PageHeader title="Settings" subtitle="Your services, prices, and branding" />
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-5 lg:col-span-2">
           <ServicesManager services={services ?? []} />
+          <MonthlyCosts recurring={recurring} />
         </div>
 
         <div className="flex flex-col gap-5">
