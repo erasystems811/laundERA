@@ -12,11 +12,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, status, total, subtotal, dropped_off_by, picked_up_by, created_at, customers(name, phone)")
+    .select("id, status, total, subtotal, dropped_off_by, picked_up_by, photos, created_at, customers(name, phone)")
     .eq("id", id)
     .single();
 
   if (!order) notFound();
+
+  const { data: events } = await supabase
+    .from("order_stage_events")
+    .select("id, from_stage, to_stage, changed_at")
+    .eq("order_id", id)
+    .order("changed_at", { ascending: true });
 
   const { data: staff } = await supabase
     .from("staff")
@@ -97,6 +103,48 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 <p className="font-medium text-ink">{order.picked_up_by ?? (order.status === "delivered" ? "—" : "Not yet")}</p>
               </div>
             </div>
+          </div>
+
+          {!!(order.photos as string[])?.length && (
+            <div className="glass-card rounded-2xl p-6">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Photos at intake</p>
+              <div className="flex flex-wrap gap-2.5">
+                {(order.photos as string[]).map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <a key={url} href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt="Clothes at intake" className="h-24 w-24 rounded-xl object-cover ring-1 ring-black/5 transition hover:opacity-90" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="glass-card rounded-2xl p-6">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">History</p>
+            {events?.length ? (
+              <ol className="flex flex-col gap-0">
+                {events.map((ev, i) => (
+                  <li key={ev.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className={`mt-1 h-2.5 w-2.5 rounded-full ${i === events.length - 1 ? "bg-teal-500 ring-4 ring-teal-500/15" : "bg-teal-600"}`} />
+                      {i < events.length - 1 && <span className="w-0.5 flex-1 bg-ink/10" />}
+                    </div>
+                    <div className="pb-5">
+                      <p className="text-[15px] font-medium text-ink">
+                        {ev.from_stage ? `Moved to ${STAGE_LABEL[ev.to_stage as OrderStatus]}` : "Order created"}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {new Date(ev.changed_at).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-muted">
+                Created {new Date(order.created_at).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
+              </p>
+            )}
           </div>
 
           {!!payments?.length && (

@@ -2,8 +2,29 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type CustomerHit = { id: string; name: string; phone: string; preferences: string | null };
+
+// Upload one intake photo, return its public URL (stored on the order at creation).
+export async function uploadOrderPhoto(formData: FormData): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: staff } = await supabase.from("staff").select("business_id").eq("id", user!.id).single();
+  if (!staff) throw new Error("No business");
+
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) throw new Error("No file");
+
+  const admin = createAdminClient();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${staff.business_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await admin.storage.from("order-photos").upload(path, file, { contentType: file.type });
+  if (error) throw error;
+  return admin.storage.from("order-photos").getPublicUrl(path).data.publicUrl;
+}
 
 // Search customers by name or phone — returns only matches (scales to any customer count).
 export async function searchCustomers(query: string): Promise<CustomerHit[]> {
@@ -25,6 +46,7 @@ type CreateOrderInput = {
   items: { serviceId: string; quantity: number }[];
   discount: { type: "percentage" | "fixed"; value: number } | null;
   droppedOffBy: string;
+  photos: string[];
 };
 
 export async function createOrder(input: CreateOrderInput) {
@@ -97,6 +119,7 @@ export async function createOrder(input: CreateOrderInput) {
       discount_value: input.discount && input.discount.value > 0 ? input.discount.value : 0,
       total,
       dropped_off_by: input.droppedOffBy?.trim() || null,
+      photos: input.photos ?? [],
       created_by: user!.id,
     })
     .select("id")
@@ -117,6 +140,14 @@ export async function createOrder(input: CreateOrderInput) {
 
   const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
   if (itemsError) throw itemsError;
+
+  // Log the opening stage so the order has a timestamped history from the start.
+  await supabase.from("order_stage_events").insert({
+    order_id: order.id,
+    from_stage: null,
+    to_stage: "collected",
+    changed_by: user!.id,
+  });
 
   redirect(`/dashboard/orders/${order.id}`);
 }

@@ -76,6 +76,16 @@ export async function moveOrderStage(
   const { error } = await supabase.from("orders").update(update).eq("id", orderId);
   if (error) throw error;
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await supabase.from("order_stage_events").insert({
+    order_id: orderId,
+    from_stage: from,
+    to_stage: to,
+    changed_by: user?.id ?? null,
+  });
+
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath("/dashboard");
 }

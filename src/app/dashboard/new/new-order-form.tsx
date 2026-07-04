@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ServiceIcon } from "@/components/service-icon";
 import { formatNaira } from "@/lib/format";
-import { createOrder, searchCustomers, type CustomerHit } from "./actions";
+import { createOrder, searchCustomers, uploadOrderPhoto, type CustomerHit } from "./actions";
 
 type Service = { id: string; name: string; icon: string; price: number };
 
@@ -17,6 +17,9 @@ export function NewOrderForm({ services, hasCustomers }: { services: Service[]; 
   const [newPhone, setNewPhone] = useState("");
   const [newPrefs, setNewPrefs] = useState("");
   const [droppedBy, setDroppedBy] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
@@ -62,6 +65,30 @@ export function NewOrderForm({ services, hasCustomers }: { services: Service[]; 
     setQuantities((p) => ({ ...p, [id]: Math.max(0, (p[id] ?? 0) + delta) }));
   }
 
+  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Photo is too large — keep it under 5MB.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("photo", file);
+    setUploadingPhoto(true);
+    setError(null);
+    startTransition(async () => {
+      try {
+        const url = await uploadOrderPhoto(fd);
+        setPhotos((p) => [...p, url]);
+      } catch {
+        setError("Photo upload failed. Try again.");
+      } finally {
+        setUploadingPhoto(false);
+        if (photoRef.current) photoRef.current.value = "";
+      }
+    });
+  }
+
   function pickCustomer(c: CustomerHit) {
     setSelectedCustomer(c);
     setResults([]);
@@ -84,6 +111,7 @@ export function NewOrderForm({ services, hasCustomers }: { services: Service[]; 
           items,
           discount: Number(discountValue) > 0 ? { type: discountType, value: Number(discountValue) } : null,
           droppedOffBy: droppedName,
+          photos,
         });
       } catch {
         setError("Something went wrong. Try again.");
@@ -193,6 +221,39 @@ export function NewOrderForm({ services, hasCustomers }: { services: Service[]; 
               );
             })}
           </div>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Photos of the clothes</p>
+              <p className="text-[11px] text-muted-2">Snap the clothes so there&rsquo;s a clear record</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => photoRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-medium text-ink hover:bg-white/60 disabled:opacity-60"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              {uploadingPhoto ? "Uploading…" : "Snap / add"}
+            </button>
+          </div>
+          <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
+          {photos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {photos.map((url) => (
+                <div key={url} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Clothes" className="h-20 w-20 rounded-xl object-cover" />
+                  <button type="button" onClick={() => setPhotos((p) => p.filter((u) => u !== url))} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-white/70 bg-white text-ink shadow">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
