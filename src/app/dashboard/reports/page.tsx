@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { STAGE_LABEL, ORDER_STAGES, type OrderStatus } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -89,7 +90,21 @@ export default async function ReportsPage() {
 
   return (
     <div>
-      <PageHeader title="Reports" subtitle="Your business at a glance, updated live" />
+      <PageHeader
+        title="Reports"
+        subtitle="Your business at a glance, updated live"
+        action={
+          <Link
+            href="/dashboard/reports/statement"
+            className="flex h-11 items-center gap-1.5 rounded-xl border border-white/60 bg-white/40 px-4 text-sm font-semibold text-ink hover:bg-white/60"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3v4a1 1 0 001 1h4M5 3h9l5 5v11a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM9 13h6M9 17h6" />
+            </svg>
+            Statement
+          </Link>
+        }
+      />
       <ReportsView data={data} />
     </div>
   );
