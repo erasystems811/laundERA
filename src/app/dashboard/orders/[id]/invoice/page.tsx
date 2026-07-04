@@ -14,7 +14,7 @@ export default async function InvoicePage({
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, subtotal, discount_value, created_at, customers(name, phone), businesses(name, address, invoice_footer, logo_url)")
+    .select("id, total, subtotal, discount_value, created_at, customers(name, phone), businesses(name, address, invoice_footer, logo_url, bank_name, account_number, account_name)")
     .eq("id", id)
     .single();
 
@@ -44,6 +44,9 @@ export default async function InvoicePage({
     address: string | null;
     invoice_footer: string | null;
     logo_url: string | null;
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
   } | null;
   const total = Number(order.total);
   const subtotal = Number(order.subtotal);
@@ -130,6 +133,16 @@ export default async function InvoicePage({
             <span className="font-mono tabular-nums">{formatNaira(balance)}</span>
           </div>
         </div>
+
+        {balance > 0 && business?.account_number && (
+          <div className="mt-6 rounded-xl border border-teal-500/30 bg-teal-500/5 px-5 py-4 print:border-ink/20 print:bg-transparent">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Pay to</p>
+            <p className="mt-1 font-mono text-lg font-bold tracking-wide text-teal-900">{business.account_number}</p>
+            <p className="text-sm text-ink">
+              {[business.bank_name, business.account_name].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+        )}
 
         {business?.invoice_footer && (
           <p className="mt-8 border-t border-ink/10 pt-4 text-center text-sm text-muted">

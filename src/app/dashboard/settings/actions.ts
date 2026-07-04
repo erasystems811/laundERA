@@ -17,6 +17,27 @@ async function businessId() {
   return { supabase, businessId: staff?.business_id as string | undefined };
 }
 
+export async function savePaymentAccount(input: {
+  method: "manual" | "listen" | "flutterwave";
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+}) {
+  const { supabase, businessId: bid } = await businessId();
+  if (!bid) throw new Error("No business");
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      payment_method: input.method,
+      bank_name: input.bank_name.trim() || null,
+      account_number: input.account_number.trim() || null,
+      account_name: input.account_name.trim() || null,
+    })
+    .eq("id", bid);
+  if (error) throw error;
+  revalidatePath("/dashboard/settings");
+}
+
 export async function addService(input: { name: string; price: number; icon: string }) {
   const { supabase, businessId: bid } = await businessId();
   if (!bid) throw new Error("No business");

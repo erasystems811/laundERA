@@ -4,6 +4,7 @@ import { logOut } from "../actions";
 import { ServicesManager } from "./services-manager";
 import { BusinessInfo } from "./business-info";
 import { MonthlyCosts } from "./monthly-costs";
+import { PaymentAccount } from "./payment-account";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -13,7 +14,7 @@ export default async function SettingsPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("name, business_id, businesses(name, whatsapp_number, address, invoice_footer, logo_url)")
+    .select("name, business_id, businesses(name, whatsapp_number, address, invoice_footer, logo_url, payment_method, bank_name, account_number, account_name)")
     .eq("id", user!.id)
     .single();
 
@@ -23,6 +24,10 @@ export default async function SettingsPage() {
     address: string | null;
     invoice_footer: string | null;
     logo_url: string | null;
+    payment_method: "manual" | "listen" | "flutterwave";
+    bank_name: string | null;
+    account_number: string | null;
+    account_name: string | null;
   } | null;
 
   const { data: services } = await supabase
@@ -54,6 +59,13 @@ export default async function SettingsPage() {
             initialAddress={business?.address ?? ""}
             initialFooter={business?.invoice_footer ?? ""}
             logoUrl={business?.logo_url ?? null}
+          />
+
+          <PaymentAccount
+            initialMethod={business?.payment_method ?? "manual"}
+            initialBank={business?.bank_name ?? ""}
+            initialNumber={business?.account_number ?? ""}
+            initialAccountName={business?.account_name ?? ""}
           />
 
           <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">
