@@ -1,11 +1,16 @@
-import { ORDER_STAGES, STAGE_LABEL, type OrderStatus } from "@/lib/format";
+import { STAGE_LABEL, type OrderStatus } from "@/lib/format";
+
+// The pipeline forks after Ready — show the path this order actually took.
+const DELIVERY_PATH: OrderStatus[] = ["collected", "processing", "ready", "in_transit", "delivered"];
+const PICKUP_PATH: OrderStatus[] = ["collected", "processing", "ready", "picked_up"];
 
 export function StageTrack({ status }: { status: OrderStatus }) {
-  const currentIndex = ORDER_STAGES.indexOf(status);
+  const path = status === "picked_up" ? PICKUP_PATH : DELIVERY_PATH;
+  const currentIndex = path.indexOf(status);
 
   return (
     <div className="mb-6 mt-1 flex items-center">
-      {ORDER_STAGES.map((stage, i) => {
+      {path.map((stage, i) => {
         const done = i < currentIndex;
         const current = i === currentIndex;
         return (

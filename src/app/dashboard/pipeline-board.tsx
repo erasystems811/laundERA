@@ -5,11 +5,12 @@ import { useState, useTransition } from "react";
 import {
   ORDER_STAGES,
   STAGE_LABEL,
-  NEXT_STAGE,
+  NEXT_STAGES,
+  TERMINAL_STAGES,
   formatNaira,
   type OrderStatus,
 } from "@/lib/format";
-import { advanceStage } from "./orders/[id]/actions";
+import { moveOrderStage } from "./orders/[id]/actions";
 
 export type BoardOrder = {
   id: string;
@@ -28,6 +29,7 @@ const COLUMN_ACCENT: Record<OrderStatus, string> = {
   ready: "bg-violet-400",
   in_transit: "bg-blue-400",
   delivered: "bg-green-400",
+  picked_up: "bg-emerald-400",
 };
 
 export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; readOnly: boolean }) {
@@ -68,31 +70,31 @@ export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; read
 function OrderCard({ order, readOnly }: { order: BoardOrder; readOnly: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [collecting, setCollecting] = useState(false);
-  const [collector, setCollector] = useState(order.customerName);
+  const [collectingFor, setCollectingFor] = useState<OrderStatus | null>(null);
+  const [receiver, setReceiver] = useState(order.customerName);
 
-  const next = NEXT_STAGE[order.status];
+  const nexts = NEXT_STAGES[order.status];
 
-  function advance() {
-    if (!next) return;
-    // Moving into Delivered needs the collector's name first.
-    if (next === "delivered" && !collecting) {
-      setCollecting(true);
+  function choose(to: OrderStatus) {
+    // Delivered / Picked Up need the receiver's name first.
+    if (TERMINAL_STAGES.includes(to)) {
+      setCollectingFor(to);
       return;
     }
+    startTransition(() => moveOrderStage(order.id, order.status, to));
+  }
+
+  function confirmTerminal() {
+    if (!collectingFor) return;
     startTransition(async () => {
-      await advanceStage(order.id, order.status, next === "delivered" ? collector : undefined);
-      setCollecting(false);
+      await moveOrderStage(order.id, order.status, collectingFor, receiver);
+      setCollectingFor(null);
     });
   }
 
   return (
     <div className="glass-card rounded-2xl p-3.5">
-      <button
-        type="button"
-        onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-        className="w-full text-left"
-      >
+      <button type="button" onClick={() => router.push(`/dashboard/orders/${order.id}`)} className="w-full text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-[15px] font-semibold text-ink">{order.customerName}</span>
           <span className="flex-shrink-0 font-mono text-sm font-semibold tabular-nums text-teal-900">
@@ -102,9 +104,7 @@ function OrderCard({ order, readOnly }: { order: BoardOrder; readOnly: boolean }
         <div className="mt-1 flex items-center gap-2 text-xs text-muted">
           <span>{order.itemCount} {order.itemCount === 1 ? "item" : "items"}</span>
           <span>·</span>
-          <span>
-            {new Date(order.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
-          </span>
+          <span>{new Date(order.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}</span>
           {order.balance > 0 && (
             <>
               <span>·</span>
@@ -112,52 +112,47 @@ function OrderCard({ order, readOnly }: { order: BoardOrder; readOnly: boolean }
             </>
           )}
         </div>
-        {order.droppedOffBy && (
-          <p className="mt-1 text-[11px] text-muted-2">Dropped by {order.droppedOffBy}</p>
-        )}
+        {order.droppedOffBy && <p className="mt-1 text-[11px] text-muted-2">Dropped by {order.droppedOffBy}</p>}
       </button>
 
-      {!readOnly && next && (
+      {!readOnly && nexts.length > 0 && (
         <div className="mt-3 border-t border-ink/5 pt-2.5">
-          {collecting ? (
+          {collectingFor ? (
             <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                Who {collectingFor === "picked_up" ? "collected" : "received"} it?
+              </p>
               <input
-                value={collector}
-                onChange={(e) => setCollector(e.target.value)}
-                placeholder="Who collected it?"
+                value={receiver}
+                onChange={(e) => setReceiver(e.target.value)}
+                placeholder="Name"
                 className="h-9 w-full rounded-lg border border-teal-500 bg-white/60 px-3 text-sm text-ink outline-none placeholder:text-muted-2"
                 autoFocus
               />
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCollecting(false)}
-                  className="h-9 flex-1 rounded-lg bg-white/50 text-xs font-medium text-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={isPending || !collector.trim()}
-                  onClick={advance}
-                  className="btn-primary h-9 flex-1 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
-                >
-                  Mark Delivered
+                <button type="button" onClick={() => setCollectingFor(null)} className="h-9 flex-1 rounded-lg bg-white/50 text-xs font-medium text-muted">Cancel</button>
+                <button type="button" disabled={isPending || !receiver.trim()} onClick={confirmTerminal} className="btn-primary h-9 flex-1 rounded-lg text-xs font-semibold text-white disabled:opacity-60">
+                  Mark {STAGE_LABEL[collectingFor]}
                 </button>
               </div>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={advance}
-              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-teal-500/15 text-xs font-semibold text-teal-800 hover:bg-teal-500/25 disabled:opacity-60"
-            >
-              Move to {STAGE_LABEL[next]}
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
+            <div className={`flex ${nexts.length > 1 ? "flex-col" : ""} gap-1.5`}>
+              {nexts.map((to) => (
+                <button
+                  key={to}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => choose(to)}
+                  className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-teal-500/15 text-xs font-semibold text-teal-800 hover:bg-teal-500/25 disabled:opacity-60"
+                >
+                  {STAGE_LABEL[to]}
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

@@ -3,20 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { NEXT_STAGE, type OrderStatus } from "@/lib/format";
+import { NEXT_STAGES, TERMINAL_STAGES, type OrderStatus } from "@/lib/format";
 
-export async function advanceStage(
+export async function moveOrderStage(
   orderId: string,
-  currentStatus: OrderStatus,
-  pickedUpBy?: string
+  from: OrderStatus,
+  to: OrderStatus,
+  receivedBy?: string
 ) {
-  const next = NEXT_STAGE[currentStatus];
-  if (!next) return;
+  // Only allow moves the pipeline permits from the current stage.
+  if (!NEXT_STAGES[from]?.includes(to)) return;
 
-  const update: { status: OrderStatus; picked_up_by?: string } = { status: next };
-  // Record who collected the order at the moment it's marked delivered.
-  if (next === "delivered" && pickedUpBy?.trim()) {
-    update.picked_up_by = pickedUpBy.trim();
+  const update: { status: OrderStatus; picked_up_by?: string } = { status: to };
+  // Delivered and Picked Up both record who received the clothes.
+  if (TERMINAL_STAGES.includes(to) && receivedBy?.trim()) {
+    update.picked_up_by = receivedBy.trim();
   }
 
   const supabase = await createClient();
@@ -53,6 +54,8 @@ export async function logPayment(orderId: string, amount: number, method: "cash"
   if (error) throw error;
 
   revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard/payments");
+  revalidatePath("/dashboard");
 }
 
 export async function generateInvoice(orderId: string) {

@@ -22,12 +22,12 @@ export default async function OrdersPage() {
   const { data: statRows } = await supabase.rpc("dashboard_stats");
   const kpi = statRows?.[0] ?? { active_orders: 0, garments: 0, ready_count: 0, owed: 0 };
 
-  // The board only carries work-in-progress + recently delivered — never the full history.
+  // The board only carries work-in-progress + recently completed — never the full history.
   const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
   const { data: ordersRaw } = await supabase
     .from("orders")
     .select("id, status, total, dropped_off_by, created_at, customers(name), order_items(quantity)")
-    .or(`status.neq.delivered,created_at.gte.${twoDaysAgo}`)
+    .or(`status.not.in.(delivered,picked_up),created_at.gte.${twoDaysAgo}`)
     .order("created_at", { ascending: false })
     .limit(400);
 
