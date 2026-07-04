@@ -6,7 +6,7 @@ import { STAGE_LABEL, STAGE_PILL_CLASS, type OrderStatus } from "@/lib/format";
 import { addSupplyItem, adjustSupply, deleteSupplyItem } from "./actions";
 
 type SupplyItem = { id: string; name: string; unit: string; quantity: number; low_threshold: number };
-type ClothesOrder = { id: string; customerName: string; count: number; status: OrderStatus; droppedOffBy: string | null };
+type ClothesOrder = { id: string; customerName: string; count: number; breakdown: { name: string; qty: number }[]; status: OrderStatus; droppedOffBy: string | null };
 type Clothes = { total: number; byStage: { collected: number; processing: number; ready: number }; orders: ClothesOrder[] };
 
 export function InventoryTabs({
@@ -173,16 +173,26 @@ function ClothesInStore({ clothes }: { clothes: Clothes }) {
             <thead>
               <tr className="border-b border-ink/10 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-2">
                 <th className="px-5 py-3">Customer</th>
+                <th className="px-5 py-3">Items</th>
                 <th className="px-5 py-3">Dropped by</th>
-                <th className="px-5 py-3 text-right">Items</th>
+                <th className="px-5 py-3 text-right">Total</th>
                 <th className="px-5 py-3 text-right">Stage</th>
               </tr>
             </thead>
             <tbody>
               {clothes.orders.map((o) => (
-                <tr key={o.id} className="border-b border-ink/5 last:border-b-0 hover:bg-white/30">
+                <tr key={o.id} className="border-b border-ink/5 align-top last:border-b-0 hover:bg-white/30">
                   <td className="px-5 py-3">
                     <Link href={`/dashboard/orders/${o.id}`} className="font-medium text-ink hover:text-teal-700">{o.customerName}</Link>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {o.breakdown.map((it) => (
+                        <span key={it.name} className="inline-flex items-center gap-1 rounded-lg bg-teal-500/10 px-2 py-0.5 text-xs text-teal-800">
+                          <span className="font-semibold">{it.qty}</span> {it.name}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-muted">{o.droppedOffBy ?? "—"}</td>
                   <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">{o.count}</td>
@@ -192,7 +202,7 @@ function ClothesInStore({ clothes }: { clothes: Clothes }) {
                 </tr>
               ))}
               {!clothes.orders.length && (
-                <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-muted">No clothes in the shop right now.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-muted">No clothes in the shop right now.</td></tr>
               )}
             </tbody>
           </table>

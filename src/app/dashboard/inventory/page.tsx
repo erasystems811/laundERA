@@ -24,19 +24,22 @@ export default async function InventoryPage() {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, status, dropped_off_by, customers(name), order_items(quantity)")
+    .select("id, status, dropped_off_by, customers(name), order_items(service_name, quantity)")
     .in("status", IN_STORE_STAGES);
 
   const byStage = { collected: 0, processing: 0, ready: 0 };
   let total = 0;
   const orderRows = (orders ?? []).map((o) => {
-    const items = (o.order_items as unknown as { quantity: number }[]) ?? [];
-    const count = items.reduce((s, it) => s + Number(it.quantity), 0);
+    const items = (o.order_items as unknown as { service_name: string; quantity: number }[]) ?? [];
+    const breakdown = items
+      .map((it) => ({ name: it.service_name, qty: Number(it.quantity) }))
+      .sort((a, b) => b.qty - a.qty);
+    const count = breakdown.reduce((s, it) => s + it.qty, 0);
     const status = o.status as OrderStatus;
     total += count;
     if (status in byStage) byStage[status as keyof typeof byStage] += count;
     const customer = o.customers as unknown as { name: string } | null;
-    return { id: o.id, customerName: customer?.name ?? "Unknown", count, status, droppedOffBy: o.dropped_off_by };
+    return { id: o.id, customerName: customer?.name ?? "Unknown", count, breakdown, status, droppedOffBy: o.dropped_off_by };
   });
   orderRows.sort((a, b) => b.count - a.count);
 
