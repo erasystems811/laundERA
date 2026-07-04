@@ -14,10 +14,13 @@ export default async function ReportsPage() {
   const year = now.getFullYear();
   const cm = now.getMonth();
 
+  // Freeze any completed months first, so past figures never drift when costs change.
+  await supabase.rpc("ensure_months_closed");
+
   // All heavy aggregation runs in the database — the app only receives rolled-up rows.
-  const [scalarsR, monthlyR, serviceR, stageR, topR, owingR, expensesR, bizR] = await Promise.all([
+  const [scalarsR, seriesR, serviceR, stageR, topR, owingR, expensesR, bizR] = await Promise.all([
     supabase.rpc("reports_scalars"),
-    supabase.rpc("reports_monthly", { p_year: year }),
+    supabase.rpc("monthly_series", { p_year: year }),
     supabase.rpc("revenue_by_service"),
     supabase.rpc("orders_stage_counts"),
     supabase.rpc("top_customers", { p_limit: 8 }),
@@ -27,22 +30,22 @@ export default async function ReportsPage() {
   ]);
 
   const s = scalarsR.data?.[0] ?? {};
-  const monthly = (monthlyR.data ?? []) as { month: number; collected: number; once_expense: number }[];
+  const series = (seriesR.data ?? []) as { month: number; revenue: number; expenses: number }[];
   const expenses = (expensesR.data ?? []).map((e) => ({ ...e, amount: Number(e.amount) }));
 
   const businessStart = bizR.data ? new Date(bizR.data.created_at) : now;
   const startMonth = businessStart.getFullYear() < year ? 0 : businessStart.getMonth();
 
   const recurring = expenses.filter((e) => e.kind === "recurring");
-  const recurringPerMonth = recurring.reduce((a, e) => a + (e.cadence === "yearly" ? e.amount / 12 : e.amount), 0);
 
+  // Frozen for closed months, live for the current one — straight from monthly_series.
   const collected = Array(12).fill(0);
-  const once = Array(12).fill(0);
-  for (const m of monthly) {
-    collected[m.month - 1] = Number(m.collected);
-    once[m.month - 1] = Number(m.once_expense);
+  const expenseArr = Array(12).fill(0);
+  for (const m of series) {
+    collected[m.month - 1] = Number(m.revenue);
+    expenseArr[m.month - 1] = Number(m.expenses);
   }
-  const monthExpense = (m: number) => recurringPerMonth + once[m];
+  const monthExpense = (m: number) => expenseArr[m];
 
   const moneyIn = collected[cm];
   const moneyOut = monthExpense(cm);

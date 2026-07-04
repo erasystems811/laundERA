@@ -25,12 +25,14 @@ export default async function StatementPage({
     .single();
   const business = staff?.businesses as unknown as { name: string; address: string | null; logo_url: string | null; created_at: string } | null;
 
-  const [monthlyR, expensesR] = await Promise.all([
-    supabase.rpc("reports_monthly", { p_year: year }),
+  // Freeze completed months, then read the frozen-or-live series.
+  await supabase.rpc("ensure_months_closed");
+  const [seriesR, expensesR] = await Promise.all([
+    supabase.rpc("monthly_series", { p_year: year }),
     supabase.from("expenses").select("name, amount, kind, cadence, incurred_on"),
   ]);
 
-  const monthly = (monthlyR.data ?? []) as { month: number; collected: number; once_expense: number }[];
+  const series = (seriesR.data ?? []) as { month: number; revenue: number; expenses: number }[];
   const expenses = (expensesR.data ?? []).map((e) => ({ ...e, amount: Number(e.amount) }));
 
   const businessStart = business ? new Date(business.created_at) : now;
@@ -38,17 +40,19 @@ export default async function StatementPage({
   const monthsElapsed = cm - startMonth + 1;
 
   const collected = Array(12).fill(0);
-  const once = Array(12).fill(0);
-  for (const m of monthly) { collected[m.month - 1] = Number(m.collected); once[m.month - 1] = Number(m.once_expense); }
-
-  const recurring = expenses.filter((e) => e.kind === "recurring");
-  const recurringPerMonth = recurring.reduce((a, e) => a + (e.cadence === "yearly" ? e.amount / 12 : e.amount), 0);
+  const expenseArr = Array(12).fill(0);
+  for (const m of series) { collected[m.month - 1] = Number(m.revenue); expenseArr[m.month - 1] = Number(m.expenses); }
 
   const range = Array.from({ length: monthsElapsed }, (_, i) => startMonth + i);
   const revenue = range.reduce((a, m) => a + collected[m], 0);
-  const recurringTotal = recurringPerMonth * monthsElapsed;
-  const onceTotal = range.reduce((a, m) => a + once[m], 0);
-  const totalExpenses = recurringTotal + onceTotal;
+  const totalExpenses = range.reduce((a, m) => a + expenseArr[m], 0);
+  const onceThisYear = expenses.filter((e) => {
+    if (e.kind !== "once" || !e.incurred_on) return false;
+    const [y, mo] = e.incurred_on.split("-").map(Number);
+    return y === year && mo - 1 >= startMonth && mo - 1 <= cm;
+  });
+  const onceTotal = onceThisYear.reduce((a, e) => a + e.amount, 0);
+  const recurringTotal = Math.max(0, totalExpenses - onceTotal);
   const netProfit = revenue - totalExpenses;
 
   const onceByName = new Map<string, number>();
@@ -121,7 +125,7 @@ export default async function StatementPage({
           <tbody>
             {range.map((m) => {
               const inc = collected[m];
-              const out = recurringPerMonth + once[m];
+              const out = expenseArr[m];
               return (
                 <tr key={m} className="border-b border-ink/5">
                   <td className="py-2 text-ink">{MONTHS[m]}</td>
