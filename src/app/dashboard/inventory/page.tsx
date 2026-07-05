@@ -22,6 +22,8 @@ export default async function InventoryPage() {
     .select("id, name, unit, quantity, low_threshold")
     .order("name");
 
+  const { data: activity } = await supabase.rpc("supply_activity", { p_limit: 40 });
+
   const { data: orders } = await supabase
     .from("orders")
     .select("id, status, dropped_off_by, customers(name), order_items(service_name, quantity)")
@@ -52,7 +54,7 @@ export default async function InventoryPage() {
   return (
     <div>
       <PageHeader title="Inventory" subtitle="Supplies you stock, and the clothes in your care" />
-      <InventoryTabs supplies={supplyItems} clothes={{ total, byStage, orders: orderRows }} readOnly={readOnly} />
+      <InventoryTabs supplies={supplyItems} clothes={{ total, byStage, orders: orderRows }} activity={activity ?? []} readOnly={readOnly} />
     </div>
   );
 }

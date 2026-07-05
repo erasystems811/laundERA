@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { BrandCredit } from "@/components/brand";
 
 const NAV = [
   {
@@ -118,13 +119,14 @@ export function Shell({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-teal-900">{businessName}</p>
-          <p className="text-[11px] text-muted-2">LaundERA</p>
+          <p className="text-[11px] text-muted-2">Laund<span className="text-teal-500">ERA</span></p>
         </div>
       </div>
       {nav}
       <div className="border-t border-ink/10 px-5 py-3">
         <p className="text-xs text-muted">Signed in as</p>
         <p className="truncate text-sm font-medium text-ink">{staffName}</p>
+        <BrandCredit className="mt-2" />
       </div>
     </>
   );

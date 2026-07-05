@@ -13,7 +13,7 @@ async function ctx() {
     .select("business_id")
     .eq("id", user!.id)
     .single();
-  return { supabase, businessId: staff?.business_id as string | undefined };
+  return { supabase, businessId: staff?.business_id as string | undefined, userId: user?.id };
 }
 
 export async function addSupplyItem(input: {
@@ -39,8 +39,9 @@ export async function adjustSupply(input: {
   itemId: string;
   direction: "in" | "out";
   quantity: number;
+  note?: string;
 }) {
-  const { supabase, businessId } = await ctx();
+  const { supabase, businessId, userId } = await ctx();
   if (!businessId) throw new Error("No business");
   if (input.quantity <= 0) return;
 
@@ -59,6 +60,8 @@ export async function adjustSupply(input: {
     item_id: input.itemId,
     direction: input.direction,
     quantity: input.quantity,
+    note: input.note?.trim() || null,
+    changed_by: userId,
   });
   if (moveError) throw moveError;
 

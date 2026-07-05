@@ -8,14 +8,17 @@ import { addSupplyItem, adjustSupply, deleteSupplyItem } from "./actions";
 type SupplyItem = { id: string; name: string; unit: string; quantity: number; low_threshold: number };
 type ClothesOrder = { id: string; customerName: string; count: number; breakdown: { name: string; qty: number }[]; status: OrderStatus; droppedOffBy: string | null };
 type Clothes = { total: number; byStage: { collected: number; processing: number; ready: number }; orders: ClothesOrder[] };
+export type SupplyActivity = { id: string; item_name: string; direction: "in" | "out"; quantity: number; note: string | null; who: string | null; created_at: string };
 
 export function InventoryTabs({
   supplies,
   clothes,
+  activity,
   readOnly,
 }: {
   supplies: SupplyItem[];
   clothes: Clothes;
+  activity: SupplyActivity[];
   readOnly: boolean;
 }) {
   const [tab, setTab] = useState<"supplies" | "clothes">("supplies");
@@ -37,7 +40,35 @@ export function InventoryTabs({
         ))}
       </div>
 
-      {tab === "supplies" ? <Supplies items={supplies} readOnly={readOnly} /> : <ClothesInStore clothes={clothes} />}
+      {tab === "supplies" ? <Supplies items={supplies} activity={activity} readOnly={readOnly} /> : <ClothesInStore clothes={clothes} />}
+    </div>
+  );
+}
+
+function ActivityLog({ activity }: { activity: SupplyActivity[] }) {
+  if (!activity.length) return null;
+  return (
+    <div className="glass-card overflow-hidden rounded-2xl">
+      <p className="border-b border-ink/10 px-5 py-4 text-sm font-semibold text-ink">Usage &amp; restock history</p>
+      <ul className="divide-y divide-ink/5">
+        {activity.map((a) => (
+          <li key={a.id} className="flex items-center gap-3 px-5 py-3">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${a.direction === "in" ? "bg-teal-500/15 text-teal-700" : "bg-amber-100/70 text-amber-700"}`}>
+              {a.direction === "in" ? "+" : "−"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] text-ink">
+                <span className="font-semibold">{a.direction === "in" ? "Restocked" : "Used"} {a.quantity}</span> — {a.item_name}
+                {a.note ? <span className="text-muted"> · {a.note}</span> : null}
+              </p>
+              <p className="text-xs text-muted-2">
+                {a.who ? `${a.who} · ` : ""}
+                {new Date(a.created_at).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -59,7 +90,7 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean }) {
+function Supplies({ items, activity, readOnly }: { items: SupplyItem[]; activity: SupplyActivity[]; readOnly: boolean }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("pcs");
@@ -80,6 +111,7 @@ function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean 
   }
 
   return (
+    <div className="flex flex-col gap-5">
     <div className="glass-card overflow-hidden rounded-2xl">
       <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
         <div>
@@ -137,19 +169,23 @@ function Supplies({ items, readOnly }: { items: SupplyItem[]; readOnly: boolean 
         </table>
       </div>
     </div>
+    <ActivityLog activity={activity} />
+    </div>
   );
 }
 
 function SupplyRow({ item, readOnly, isPending, start }: { item: SupplyItem; readOnly: boolean; isPending: boolean; start: (cb: () => void) => void }) {
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const low = item.quantity <= item.low_threshold;
 
   function adjust(direction: "in" | "out") {
     const n = Number(amount);
     if (!n) return;
     start(async () => {
-      await adjustSupply({ itemId: item.id, direction, quantity: n });
+      await adjustSupply({ itemId: item.id, direction, quantity: n, note });
       setAmount("");
+      setNote("");
     });
   }
 
@@ -166,9 +202,10 @@ function SupplyRow({ item, readOnly, isPending, start }: { item: SupplyItem; rea
       {!readOnly && (
         <td className="px-5 py-3">
           <div className="flex items-center justify-end gap-1.5">
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="Qty" className="h-8 w-16 rounded-lg border border-white/60 bg-white/60 px-2 font-mono text-sm tabular-nums text-ink outline-none focus:border-teal-500" />
-            <button type="button" onClick={() => adjust("in")} disabled={isPending} className="h-8 rounded-lg bg-teal-500/20 px-2.5 text-xs font-semibold text-teal-800">+ In</button>
-            <button type="button" onClick={() => adjust("out")} disabled={isPending} className="h-8 rounded-lg bg-amber-100/70 px-2.5 text-xs font-semibold text-amber-700">− Out</button>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What for? (optional)" className="h-8 w-32 rounded-lg border border-white/60 bg-white/60 px-2 text-xs text-ink outline-none focus:border-teal-500" />
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="Qty" className="h-8 w-14 rounded-lg border border-white/60 bg-white/60 px-2 font-mono text-sm tabular-nums text-ink outline-none focus:border-teal-500" />
+            <button type="button" onClick={() => adjust("in")} disabled={isPending} className="h-8 rounded-lg bg-teal-500/20 px-2.5 text-xs font-semibold text-teal-800">Restock</button>
+            <button type="button" onClick={() => adjust("out")} disabled={isPending} className="h-8 rounded-lg bg-amber-100/70 px-2.5 text-xs font-semibold text-amber-700">Use</button>
             <button type="button" onClick={() => start(() => deleteSupplyItem(item.id))} className="px-1 text-xs text-red-500">✕</button>
           </div>
         </td>

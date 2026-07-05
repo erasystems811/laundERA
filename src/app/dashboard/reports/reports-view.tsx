@@ -41,9 +41,16 @@ export type ReportsData = {
   owingCustomers: { name: string; balance: number }[];
   recurring: Expense[];
   thisMonthOnce: Expense[];
+  supplies: SupplyStat[];
 };
 
-const TABS = ["Overview", "Revenue", "Expenses", "Orders", "Customers"] as const;
+export type SupplyStat = {
+  id: string; name: string; unit: string; quantity: number;
+  totalUsed: number; totalRestocked: number; restockCount: number;
+  avgDailyUse: number; daysLeft: number | null; daysTracked: number;
+};
+
+const TABS = ["Overview", "Revenue", "Expenses", "Orders", "Customers", "Supplies"] as const;
 type Tab = (typeof TABS)[number];
 
 function StatTile({ label, value, tone }: { label: string; value: string; tone?: "in" | "out" | "profit" }) {
@@ -218,6 +225,55 @@ export function ReportsView({ data }: { data: ReportsData }) {
           </div>
         </div>
       )}
+
+      {tab === "Supplies" && <SuppliesPanel supplies={data.supplies} />}
+    </div>
+  );
+}
+
+function SuppliesPanel({ supplies }: { supplies: SupplyStat[] }) {
+  if (!supplies.length) {
+    return <p className="glass-card rounded-2xl px-6 py-16 text-center text-sm text-muted">No supplies tracked yet. Add supplies in Inventory and log usage/restock to see this report.</p>;
+  }
+  const used = supplies.filter((s) => s.totalUsed > 0);
+  const fastest = [...used].sort((a, b) => b.avgDailyUse - a.avgDailyUse)[0];
+  const mostRestocked = [...supplies].sort((a, b) => b.restockCount - a.restockCount)[0];
+  const soonest = [...supplies].filter((s) => s.daysLeft !== null).sort((a, b) => (a.daysLeft ?? 1e9) - (b.daysLeft ?? 1e9))[0];
+  const dl = (d: number | null) => (d === null ? "—" : d >= 1 ? `${Math.round(d)} day${Math.round(d) === 1 ? "" : "s"}` : "< 1 day");
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">Finishes fastest</p>
+          <p className="mt-1 text-lg font-bold text-teal-900">{fastest ? fastest.name : "—"}</p>
+          {fastest && <p className="text-xs text-muted-2">{fastest.avgDailyUse.toFixed(1)} {fastest.unit}/day used</p>}
+        </div>
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">Most restocked</p>
+          <p className="mt-1 text-lg font-bold text-teal-900">{mostRestocked?.restockCount ? mostRestocked.name : "—"}</p>
+          {!!mostRestocked?.restockCount && <p className="text-xs text-muted-2">restocked {mostRestocked.restockCount}×</p>}
+        </div>
+        <div className="glass-card rounded-2xl p-5">
+          <p className="text-sm text-muted">Runs out soonest</p>
+          <p className="mt-1 text-lg font-bold text-teal-900">{soonest ? soonest.name : "—"}</p>
+          {soonest && <p className="text-xs text-muted-2">lasts ~{dl(soonest.daysLeft)}</p>}
+        </div>
+      </div>
+
+      <Panel title="Every supply — usage & how long it lasts">
+        <Table
+          head={["Item", "In stock", "Used/day", "Lasts ~", "Total used", "Restocks"]}
+          rows={supplies.map((s) => [
+            s.name,
+            <span key="q" className="font-mono tabular-nums text-ink">{s.quantity} {s.unit}</span>,
+            <span key="a" className="font-mono tabular-nums text-ink">{s.avgDailyUse > 0 ? s.avgDailyUse.toFixed(1) : "—"}</span>,
+            <span key="d" className="font-mono tabular-nums text-teal-900">{dl(s.daysLeft)}</span>,
+            <span key="u" className="font-mono tabular-nums text-muted">{s.totalUsed} {s.unit}</span>,
+            <span key="r" className="font-mono tabular-nums text-muted">{s.restockCount}×</span>,
+          ])}
+        />
+      </Panel>
     </div>
   );
 }

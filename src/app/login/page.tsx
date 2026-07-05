@@ -1,3 +1,4 @@
+import { BrandCredit } from "@/components/brand";
 import { logIn } from "./actions";
 
 export default async function LoginPage({
@@ -11,7 +12,7 @@ export default async function LoginPage({
     <div className="flex flex-1 items-center justify-center px-6">
       <div className="glass-card w-full max-w-sm rounded-[32px] p-8">
         <div className="mb-10 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-teal-900">LaundERA</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-teal-900">Laund<span className="text-teal-500">ERA</span></h1>
           <p className="mt-1 text-muted">Log in to your account</p>
         </div>
 
@@ -61,6 +62,7 @@ export default async function LoginPage({
             Log in
           </button>
         </form>
+        <BrandCredit className="mt-8 text-center" />
       </div>
     </div>
   );

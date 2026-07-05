@@ -18,7 +18,7 @@ export default async function ReportsPage() {
   await supabase.rpc("ensure_months_closed");
 
   // All heavy aggregation runs in the database — the app only receives rolled-up rows.
-  const [scalarsR, seriesR, serviceR, stageR, topR, owingR, expensesR, bizR] = await Promise.all([
+  const [scalarsR, seriesR, serviceR, stageR, topR, owingR, expensesR, bizR, suppliesR] = await Promise.all([
     supabase.rpc("reports_scalars"),
     supabase.rpc("monthly_series", { p_year: year }),
     supabase.rpc("revenue_by_service"),
@@ -27,6 +27,7 @@ export default async function ReportsPage() {
     supabase.rpc("owing_customers", { p_limit: 20 }),
     supabase.from("expenses").select("id, name, amount, kind, cadence, incurred_on").order("created_at", { ascending: false }),
     supabase.from("businesses").select("created_at").limit(1).single(),
+    supabase.rpc("supply_report"),
   ]);
 
   const s = scalarsR.data?.[0] ?? {};
@@ -89,6 +90,12 @@ export default async function ReportsPage() {
     topCustomers: (topR.data ?? []).map((r: { name: string; spend: number }) => ({ name: r.name, spend: Number(r.spend), balance: 0 })),
     owingCustomers: (owingR.data ?? []).map((r: { name: string; balance: number }) => ({ name: r.name, balance: Number(r.balance) })),
     recurring, thisMonthOnce,
+    supplies: (suppliesR.data ?? []).map((r: { item_id: string; name: string; unit: string; quantity: number; total_used: number; total_restocked: number; restock_count: number; avg_daily_use: number; days_left: number | null; days_tracked: number }) => ({
+      id: r.item_id, name: r.name, unit: r.unit,
+      quantity: Number(r.quantity), totalUsed: Number(r.total_used), totalRestocked: Number(r.total_restocked),
+      restockCount: Number(r.restock_count), avgDailyUse: Number(r.avg_daily_use),
+      daysLeft: r.days_left === null ? null : Number(r.days_left), daysTracked: Number(r.days_tracked),
+    })),
   };
 
   return (

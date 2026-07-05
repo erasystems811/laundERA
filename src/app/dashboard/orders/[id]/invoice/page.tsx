@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatNaira } from "@/lib/format";
+import { BrandCredit } from "@/components/brand";
 import { PrintButton } from "./print-button";
 
 export default async function InvoicePage({
@@ -76,13 +77,15 @@ export default async function InvoicePage({
               <p className="mt-0.5 text-sm text-muted">Invoice {invoice.invoice_number}</p>
             </div>
           </div>
-          <p className="flex-shrink-0 text-sm text-muted">
-            {new Date(invoice.created_at).toLocaleDateString("en-NG", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </p>
+          <div className="flex-shrink-0 text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-2">Date</p>
+            <p className="text-sm font-medium text-ink">
+              {new Date(invoice.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+            </p>
+            <p className="text-xs text-muted">
+              {new Date(invoice.created_at).toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit", hour12: true })}
+            </p>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -149,6 +152,7 @@ export default async function InvoicePage({
             {business.invoice_footer}
           </p>
         )}
+        <BrandCredit className="mt-6 text-center" />
       </div>
     </div>
   );
