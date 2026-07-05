@@ -40,6 +40,7 @@ export async function adjustSupply(input: {
   direction: "in" | "out";
   quantity: number;
   note?: string;
+  performedBy?: string;
 }) {
   const { supabase, businessId, userId } = await ctx();
   if (!businessId) throw new Error("No business");
@@ -61,6 +62,7 @@ export async function adjustSupply(input: {
     direction: input.direction,
     quantity: input.quantity,
     note: input.note?.trim() || null,
+    performed_by: input.performedBy?.trim() || null,
     changed_by: userId,
   });
   if (moveError) throw moveError;

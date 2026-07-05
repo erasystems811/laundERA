@@ -62,7 +62,7 @@ function ActivityLog({ activity }: { activity: SupplyActivity[] }) {
                 {a.note ? <span className="text-muted"> · {a.note}</span> : null}
               </p>
               <p className="text-xs text-muted-2">
-                {a.who ? <>by <span className="font-semibold text-muted">{a.who}</span> · </> : "by staff · "}
+                {a.who ? <>by <span className="font-semibold text-muted">{a.who}</span> · </> : <span className="italic">name not recorded · </span>}
                 {new Date(a.created_at).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
               </p>
             </div>
@@ -177,15 +177,17 @@ function Supplies({ items, activity, readOnly }: { items: SupplyItem[]; activity
 function SupplyRow({ item, readOnly, isPending, start }: { item: SupplyItem; readOnly: boolean; isPending: boolean; start: (cb: () => void) => void }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [by, setBy] = useState("");
   const low = item.quantity <= item.low_threshold;
 
   function adjust(direction: "in" | "out") {
     const n = Number(amount);
     if (!n) return;
     start(async () => {
-      await adjustSupply({ itemId: item.id, direction, quantity: n, note });
+      await adjustSupply({ itemId: item.id, direction, quantity: n, note, performedBy: by });
       setAmount("");
       setNote("");
+      setBy("");
     });
   }
 
@@ -202,7 +204,8 @@ function SupplyRow({ item, readOnly, isPending, start }: { item: SupplyItem; rea
       {!readOnly && (
         <td className="px-5 py-3">
           <div className="flex items-center justify-end gap-1.5">
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What for? (optional)" className="h-8 w-32 rounded-lg border border-white/60 bg-white/60 px-2 text-xs text-ink outline-none focus:border-teal-500" />
+            <input value={by} onChange={(e) => setBy(e.target.value)} placeholder="Done by (name)" className="h-8 w-28 rounded-lg border border-white/60 bg-white/60 px-2 text-xs text-ink outline-none focus:border-teal-500" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What for?" className="h-8 w-28 rounded-lg border border-white/60 bg-white/60 px-2 text-xs text-ink outline-none focus:border-teal-500" />
             <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="Qty" className="h-8 w-14 rounded-lg border border-white/60 bg-white/60 px-2 font-mono text-sm tabular-nums text-ink outline-none focus:border-teal-500" />
             <button type="button" onClick={() => adjust("in")} disabled={isPending} className="h-8 rounded-lg bg-teal-500/20 px-2.5 text-xs font-semibold text-teal-800">Restock</button>
             <button type="button" onClick={() => adjust("out")} disabled={isPending} className="h-8 rounded-lg bg-amber-100/70 px-2.5 text-xs font-semibold text-amber-700">Use</button>
