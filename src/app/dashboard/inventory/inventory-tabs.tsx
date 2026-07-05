@@ -58,12 +58,12 @@ function ActivityLog({ activity }: { activity: SupplyActivity[] }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] text-ink">
-                <span className="font-semibold">{a.direction === "in" ? "Restocked" : "Used"} {a.quantity}</span> — {a.item_name}
+                <span className="font-semibold">{a.direction === "in" ? "Restocked" : "Used"} {Number(a.quantity)}</span> — {a.item_name}
                 {a.note ? <span className="text-muted"> · {a.note}</span> : null}
               </p>
               <p className="text-xs text-muted-2">
-                {a.who ? `${a.who} · ` : ""}
-                {new Date(a.created_at).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })}
+                {a.who ? <>by <span className="font-semibold text-muted">{a.who}</span> · </> : "by staff · "}
+                {new Date(a.created_at).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
               </p>
             </div>
           </li>
