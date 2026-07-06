@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { NEXT_STAGES, TERMINAL_STAGES, type OrderStatus } from "@/lib/format";
+import { notifyOrderReady } from "@/lib/notify";
 
 // Add more clothes to an existing order (e.g. the customer brought extra after intake).
 // Recomputes subtotal, discount and total; any generated invoice reads live so it updates too.
@@ -85,6 +86,9 @@ export async function moveOrderStage(
     to_stage: to,
     changed_by: user?.id ?? null,
   });
+
+  // Auto-WhatsApp the customer when their clothes are ready (best-effort, opt-in).
+  if (to === "ready") await notifyOrderReady(orderId);
 
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath("/dashboard");

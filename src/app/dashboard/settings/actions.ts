@@ -17,6 +17,14 @@ async function businessId() {
   return { supabase, businessId: staff?.business_id as string | undefined };
 }
 
+export async function setNotifyOnReady(enabled: boolean) {
+  const { supabase, businessId: bid } = await businessId();
+  if (!bid) throw new Error("No business");
+  const { error } = await supabase.from("businesses").update({ notify_on_ready: enabled }).eq("id", bid);
+  if (error) throw error;
+  revalidatePath("/dashboard/settings");
+}
+
 export async function savePaymentAccount(input: {
   method: "manual" | "listen" | "flutterwave";
   bank_name: string;

@@ -5,6 +5,7 @@ import { ServicesManager } from "./services-manager";
 import { BusinessInfo } from "./business-info";
 import { MonthlyCosts } from "./monthly-costs";
 import { PaymentAccount } from "./payment-account";
+import { NotifySettings } from "./notify-settings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("name, business_id, businesses(name, whatsapp_number, address, invoice_footer, logo_url, payment_method, bank_name, account_number, account_name)")
+    .select("name, business_id, businesses(name, whatsapp_number, address, invoice_footer, logo_url, payment_method, bank_name, account_number, account_name, notify_on_ready)")
     .eq("id", user!.id)
     .single();
 
@@ -28,6 +29,7 @@ export default async function SettingsPage() {
     bank_name: string | null;
     account_number: string | null;
     account_name: string | null;
+    notify_on_ready: boolean;
   } | null;
 
   const { data: services } = await supabase
@@ -67,6 +69,8 @@ export default async function SettingsPage() {
             initialNumber={business?.account_number ?? ""}
             initialAccountName={business?.account_name ?? ""}
           />
+
+          <NotifySettings initial={business?.notify_on_ready ?? false} />
 
           <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">
             <div>
