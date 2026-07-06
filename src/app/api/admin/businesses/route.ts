@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const { data: businesses, error } = await admin
     .from("businesses")
-    .select("id, name, whatsapp_number, status, created_at")
+    .select("id, name, whatsapp_number, status, expires_at, created_at")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     name: b.name,
     whatsapp: b.whatsapp_number,
     status: b.status,
+    expiresAt: b.expires_at,
     createdAt: b.created_at,
     orders: orderCount.get(b.id) ?? 0,
     collected: revenue.get(b.id) ?? 0,
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!isOperator(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { name?: string; ownerName?: string; ownerPhone?: string; pin?: string };
+  let body: { name?: string; ownerName?: string; ownerPhone?: string; pin?: string; expiresAt?: string };
   try {
     body = await req.json();
   } catch {
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
   const ownerName = body.ownerName?.trim();
   const ownerPhone = body.ownerPhone?.trim();
   const pin = body.pin?.trim();
+  const expiresAt = body.expiresAt?.trim() || null;
 
   if (!name || !ownerName || !ownerPhone || !pin) {
     return NextResponse.json(
@@ -61,12 +63,15 @@ export async function POST(req: NextRequest) {
   if (!/^\d{4,}$/.test(pin)) {
     return NextResponse.json({ error: "PIN must be at least 4 digits" }, { status: 400 });
   }
+  if (expiresAt && !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+    return NextResponse.json({ error: "expiresAt must be YYYY-MM-DD" }, { status: 400 });
+  }
 
   const admin = createAdminClient();
 
   const { data: business, error: bizError } = await admin
     .from("businesses")
-    .insert({ name })
+    .insert({ name, expires_at: expiresAt })
     .select("id")
     .single();
   if (bizError) return NextResponse.json({ error: bizError.message }, { status: 500 });

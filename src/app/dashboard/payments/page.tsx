@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessReadOnly } from "@/lib/access";
 import { formatNaira } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { PaymentsTable } from "./payments-table";
@@ -20,10 +21,10 @@ export default async function PaymentsPage() {
   } = await supabase.auth.getUser();
   const { data: staff } = await supabase
     .from("staff")
-    .select("businesses(status)")
+    .select("businesses(status, expires_at)")
     .eq("id", user!.id)
     .single();
-  const readOnly = (staff?.businesses as unknown as { status: string } | null)?.status === "paused";
+  const readOnly = isBusinessReadOnly(staff?.businesses as unknown as { status: string; expires_at: string | null } | null);
 
   const { data } = await supabase.rpc("outstanding_orders", { p_limit: 100, p_offset: 0 });
   const rows = (data ?? []) as Row[];

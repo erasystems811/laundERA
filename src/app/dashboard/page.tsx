@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessReadOnly } from "@/lib/access";
 import { formatNaira, type OrderStatus } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { PipelineBoard, type BoardOrder } from "./pipeline-board";
@@ -12,11 +13,11 @@ export default async function OrdersPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("businesses(status)")
+    .select("businesses(status, expires_at)")
     .eq("id", user!.id)
     .single();
-  const business = staff?.businesses as unknown as { status: string } | null;
-  const readOnly = business?.status === "paused";
+  const business = staff?.businesses as unknown as { status: string; expires_at: string | null } | null;
+  const readOnly = isBusinessReadOnly(business);
 
   // KPIs are aggregated in the database (scales to any order count).
   const { data: statRows } = await supabase.rpc("dashboard_stats");

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessReadOnly } from "@/lib/access";
 import { IN_STORE_STAGES, type OrderStatus } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { InventoryTabs } from "./inventory-tabs";
@@ -11,11 +12,11 @@ export default async function InventoryPage() {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("businesses(status)")
+    .select("businesses(status, expires_at)")
     .eq("id", user!.id)
     .single();
-  const business = staff?.businesses as unknown as { status: string } | null;
-  const readOnly = business?.status === "paused";
+  const business = staff?.businesses as unknown as { status: string; expires_at: string | null } | null;
+  const readOnly = isBusinessReadOnly(business);
 
   const { data: supplies } = await supabase
     .from("supply_items")

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessReadOnly } from "@/lib/access";
 import { formatNaira, STAGE_LABEL, type OrderStatus } from "@/lib/format";
 import { StageTrack } from "@/components/stage-track";
 import { PageHeader } from "@/components/page-header";
@@ -26,10 +27,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("businesses(status)")
+    .select("businesses(status, expires_at)")
     .eq("id", (await supabase.auth.getUser()).data.user!.id)
     .single();
-  const readOnly = (staff?.businesses as unknown as { status: string } | null)?.status === "paused";
+  const readOnly = isBusinessReadOnly(staff?.businesses as unknown as { status: string; expires_at: string | null } | null);
 
   const { data: items } = await supabase
     .from("order_items")

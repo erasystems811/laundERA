@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: business, error } = await admin
     .from("businesses")
-    .select("id, name, whatsapp_number, address, status, created_at")
+    .select("id, name, whatsapp_number, address, status, expires_at, created_at")
     .eq("id", id)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -36,30 +36,48 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     whatsapp: business.whatsapp_number,
     address: business.address,
     status: business.status,
+    expiresAt: business.expires_at,
     createdAt: business.created_at,
     stats: { orders: orders ?? 0, customers: customers ?? 0, staff: staffCount ?? 0, collected },
   });
 }
 
-// PATCH /api/admin/businesses/:id — suspend (status:paused) or reactivate (status:active).
+// PATCH /api/admin/businesses/:id — suspend/reactivate (status) and/or shift the access
+// expiry date (expiresAt: "YYYY-MM-DD" to set, null to clear).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isOperator(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
 
-  let body: { status?: string };
+  let body: { status?: string; expiresAt?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (body.status !== "active" && body.status !== "paused") {
-    return NextResponse.json({ error: "status must be 'active' or 'paused'" }, { status: 400 });
+  const update: { status?: string; expires_at?: string | null } = {};
+
+  if (body.status !== undefined) {
+    if (body.status !== "active" && body.status !== "paused") {
+      return NextResponse.json({ error: "status must be 'active' or 'paused'" }, { status: 400 });
+    }
+    update.status = body.status;
+  }
+
+  if (body.expiresAt !== undefined) {
+    if (body.expiresAt !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.expiresAt)) {
+      return NextResponse.json({ error: "expiresAt must be YYYY-MM-DD or null" }, { status: 400 });
+    }
+    update.expires_at = body.expiresAt;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "Provide status and/or expiresAt" }, { status: 400 });
   }
 
   const admin = createAdminClient();
-  const { error } = await admin.from("businesses").update({ status: body.status }).eq("id", id);
+  const { error } = await admin.from("businesses").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ id, status: body.status });
+  return NextResponse.json({ id, ...update });
 }
