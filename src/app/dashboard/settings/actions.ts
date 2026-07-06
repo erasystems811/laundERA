@@ -17,12 +17,22 @@ async function businessId() {
   return { supabase, businessId: staff?.business_id as string | undefined };
 }
 
-export async function changePin(newPin: string) {
+// Returns a result (never throws) so the real message reaches the UI —
+// Next.js redacts thrown server-action errors in production.
+export async function changePin(newPin: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient();
   const pin = (newPin || "").trim();
-  if (!/^\d{4,}$/.test(pin)) throw new Error("PIN must be at least 4 digits (numbers only)");
+  if (!/^\d{4,}$/.test(pin)) return { ok: false, error: "PIN must be at least 4 digits (numbers only)." };
   const { error } = await supabase.auth.updateUser({ password: pin });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const m = /different from the old/i.test(error.message)
+      ? "That's already your PIN — pick a new one."
+      : /at least/i.test(error.message)
+        ? "PIN is too short — use at least 6 digits."
+        : error.message;
+    return { ok: false, error: m };
+  }
+  return { ok: true };
 }
 
 export async function setNotifyOnReady(enabled: boolean) {

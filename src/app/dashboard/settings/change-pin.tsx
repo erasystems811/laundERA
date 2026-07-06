@@ -14,12 +14,12 @@ export function ChangePin() {
     if (pin.trim().length < 4) { setMsg({ ok: false, text: "PIN must be at least 4 digits." }); return; }
     if (pin !== confirm) { setMsg({ ok: false, text: "The two PINs don't match." }); return; }
     startTransition(async () => {
-      try {
-        await changePin(pin);
+      const r = await changePin(pin);
+      if (r.ok) {
         setMsg({ ok: true, text: "PIN changed ✓" });
         setPin(""); setConfirm("");
-      } catch (e) {
-        setMsg({ ok: false, text: (e as Error).message });
+      } else {
+        setMsg({ ok: false, text: r.error || "Could not change PIN." });
       }
     });
   }
