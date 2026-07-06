@@ -28,7 +28,7 @@ export default async function OrdersPage() {
   const { data: ordersRaw } = await supabase
     .from("orders")
     .select("id, status, total, dropped_off_by, created_at, customers(name), order_items(quantity)")
-    .or(`status.not.in.(delivered,picked_up),created_at.gte.${twoDaysAgo}`)
+    .or(`status.not.in.(delivered,picked_up),completed_at.gte.${twoDaysAgo}`)
     .order("created_at", { ascending: false })
     .limit(400);
 

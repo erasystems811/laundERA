@@ -96,10 +96,12 @@ export async function moveOrderStage(
   // Only allow moves the pipeline permits from the current stage.
   if (!NEXT_STAGES[from]?.includes(to)) return;
 
-  const update: { status: OrderStatus; picked_up_by?: string } = { status: to };
-  // Delivered and Picked Up both record who received the clothes.
-  if (TERMINAL_STAGES.includes(to) && receivedBy?.trim()) {
-    update.picked_up_by = receivedBy.trim();
+  const update: { status: OrderStatus; picked_up_by?: string; completed_at?: string } = { status: to };
+  // Delivered and Picked Up both record who received the clothes + when it completed
+  // (so it stays visible in its terminal column, not filtered out by age).
+  if (TERMINAL_STAGES.includes(to)) {
+    update.completed_at = new Date().toISOString();
+    if (receivedBy?.trim()) update.picked_up_by = receivedBy.trim();
   }
 
   const supabase = await createClient();
