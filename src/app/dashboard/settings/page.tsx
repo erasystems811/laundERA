@@ -7,6 +7,7 @@ import { MonthlyCosts } from "./monthly-costs";
 import { PaymentAccount } from "./payment-account";
 import { NotifySettings } from "./notify-settings";
 import { WhatsAppConnect } from "./whatsapp-connect";
+import { ChangePin } from "./change-pin";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -74,6 +75,8 @@ export default async function SettingsPage() {
           <WhatsAppConnect defaultNumber={business?.whatsapp_number ?? ""} />
 
           <NotifySettings initial={business?.notify_on_ready ?? false} />
+
+          <ChangePin />
 
           <div className="glass-card flex items-center justify-between rounded-2xl px-5 py-4">
             <div>

@@ -6,6 +6,7 @@ import { StageTrack } from "@/components/stage-track";
 import { PageHeader } from "@/components/page-header";
 import { OrderActions } from "./order-actions";
 import { AddItems } from "./add-items";
+import { OrderItemsEditor } from "./order-items-editor";
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -64,14 +65,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <StageTrack status={order.status as OrderStatus} />
 
             <p className="mb-2 mt-2 text-xs font-semibold uppercase tracking-wide text-muted">Items</p>
-            <div className="mb-4 flex flex-col">
-              {items?.map((item) => (
-                <div key={item.id} className="flex justify-between border-b border-ink/10 py-2.5 text-[15px] last:border-b-0">
-                  <span className="text-ink">{item.service_name} × {item.quantity}</span>
-                  <span className="font-mono tabular-nums text-ink">{formatNaira(item.quantity * Number(item.unit_price))}</span>
-                </div>
-              ))}
-            </div>
+            <OrderItemsEditor orderId={order.id} items={(items ?? []).map((i) => ({ ...i, unit_price: Number(i.unit_price) }))} readOnly={readOnly} />
 
             <div className="flex flex-col gap-1.5 border-t border-dashed border-ink/15 pt-4 text-sm">
               {discount > 0 && (

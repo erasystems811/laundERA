@@ -58,6 +58,35 @@ export async function addItemsToOrder(
   revalidatePath("/dashboard/payments");
 }
 
+// Fix a mistake: change an existing item's quantity, or remove it (quantity 0).
+// Recomputes subtotal/discount/total so the invoice stays correct.
+export async function setOrderItemQuantity(orderId: string, itemId: string, quantity: number) {
+  const supabase = await createClient();
+
+  if (quantity <= 0) {
+    const { error } = await supabase.from("order_items").delete().eq("id", itemId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("order_items").update({ quantity }).eq("id", itemId);
+    if (error) throw error;
+  }
+
+  const { data: order } = await supabase.from("orders").select("discount_type, discount_value").eq("id", orderId).single();
+  const { data: items } = await supabase.from("order_items").select("quantity, unit_price").eq("order_id", orderId);
+  const subtotal = (items ?? []).reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
+  let discount = 0;
+  if (order?.discount_type === "percentage") discount = (subtotal * Number(order.discount_value)) / 100;
+  else if (order?.discount_type === "fixed") discount = Number(order.discount_value);
+  discount = Math.min(discount, subtotal);
+
+  const { error } = await supabase.from("orders").update({ subtotal, total: subtotal - discount }).eq("id", orderId);
+  if (error) throw error;
+
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard/payments");
+  revalidatePath("/dashboard");
+}
+
 export async function moveOrderStage(
   orderId: string,
   from: OrderStatus,

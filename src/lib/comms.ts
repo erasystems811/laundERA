@@ -46,6 +46,21 @@ export async function createCommsSession(phoneNumber: string): Promise<string> {
   return data.id;
 }
 
+// Find an existing session id for a number (to reuse instead of creating a duplicate).
+export async function findCommsSession(phoneNumber: string): Promise<string | null> {
+  const res = await fetch(`${COMMS_URL}/v1/sessions`, { headers: commsHeaders(), cache: "no-store" });
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => [])) as unknown;
+  const arr = (Array.isArray(data) ? data : (data as { sessions?: unknown[] }).sessions ?? []) as { sessionId?: string; id?: string; phoneNumber?: string; phone_number?: string }[];
+  const match = arr.find((s) => (s.phoneNumber || s.phone_number) === phoneNumber);
+  return match ? (match.sessionId || match.id || null) : null;
+}
+
+// Restart a session so it emits a fresh QR (for reusing an existing one).
+export async function reconnectCommsSession(sessionId: string): Promise<void> {
+  await fetch(`${COMMS_URL}/v1/sessions/${sessionId}/reconnect`, { method: "POST", headers: commsHeaders() }).catch(() => {});
+}
+
 // connected | disconnected (the only two values the client API exposes).
 export async function getCommsSessionStatus(sessionId: string): Promise<string> {
   const res = await fetch(`${COMMS_URL}/v1/sessions/${sessionId}`, { headers: commsHeaders(), cache: "no-store" });

@@ -17,6 +17,14 @@ async function businessId() {
   return { supabase, businessId: staff?.business_id as string | undefined };
 }
 
+export async function changePin(newPin: string) {
+  const supabase = await createClient();
+  const pin = (newPin || "").trim();
+  if (!/^\d{4,}$/.test(pin)) throw new Error("PIN must be at least 4 digits (numbers only)");
+  const { error } = await supabase.auth.updateUser({ password: pin });
+  if (error) throw new Error(error.message);
+}
+
 export async function setNotifyOnReady(enabled: boolean) {
   const { supabase, businessId: bid } = await businessId();
   if (!bid) throw new Error("No business");

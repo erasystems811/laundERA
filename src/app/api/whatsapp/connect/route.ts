@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCommsSession, toE164Nigeria } from "@/lib/comms";
+import { createCommsSession, findCommsSession, reconnectCommsSession, toE164Nigeria } from "@/lib/comms";
 import { ensureRelay } from "@/lib/whatsapp-relay";
 
 // Start (or resume) connecting this laundry's own WhatsApp number.
@@ -27,7 +27,20 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   let sessionId = (staff!.businesses as unknown as { comms_session_id: string | null })?.comms_session_id ?? null;
   try {
-    if (!sessionId) sessionId = await createCommsSession(to);
+    if (!sessionId) {
+      try {
+        sessionId = await createCommsSession(to);
+      } catch (createErr) {
+        // Number already has a session (from a prior connect) — reuse it and restart it.
+        const existing = await findCommsSession(to);
+        if (!existing) throw createErr;
+        sessionId = existing;
+        await reconnectCommsSession(existing);
+      }
+    } else {
+      // Resuming an existing session — nudge it to emit a fresh QR.
+      await reconnectCommsSession(sessionId);
+    }
     await admin
       .from("businesses")
       .update({ comms_session_id: sessionId, comms_number: to, comms_connected: false })
