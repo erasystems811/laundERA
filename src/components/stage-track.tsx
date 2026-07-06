@@ -1,8 +1,8 @@
 import { STAGE_LABEL, type OrderStatus } from "@/lib/format";
 
 // The pipeline forks after Ready — show the path this order actually took.
-const DELIVERY_PATH: OrderStatus[] = ["collected", "processing", "ready", "in_transit", "delivered"];
-const PICKUP_PATH: OrderStatus[] = ["collected", "processing", "ready", "picked_up"];
+const DELIVERY_PATH: OrderStatus[] = ["collected", "processing", "ready", "contacted", "in_transit", "delivered"];
+const PICKUP_PATH: OrderStatus[] = ["collected", "processing", "ready", "contacted", "picked_up"];
 
 export function StageTrack({ status }: { status: OrderStatus }) {
   const path = status === "picked_up" ? PICKUP_PATH : DELIVERY_PATH;

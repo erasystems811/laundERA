@@ -30,6 +30,7 @@ const COLUMNS: { key: string; label: string; accent: string; statuses: OrderStat
   { key: "collected", label: "Collected", accent: "bg-slate-400", statuses: ["collected"] },
   { key: "processing", label: "Processing", accent: "bg-amber-400", statuses: ["processing"] },
   { key: "ready", label: "Ready", accent: "bg-violet-400", statuses: ["ready"] },
+  { key: "contacted", label: "Contacted", accent: "bg-cyan-400", statuses: ["contacted"] },
   { key: "in_transit", label: "With Rider", accent: "bg-blue-400", statuses: ["in_transit"] },
   { key: "done", label: "Done", accent: "bg-green-400", statuses: ["delivered", "picked_up"] },
 ];
@@ -72,7 +73,7 @@ export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; read
 
       <div className="flex gap-3 overflow-x-auto pb-2">
         {grouped.map(({ col, orders: colOrders }) => (
-        <div key={col.key} className="flex w-60 shrink-0 flex-col">
+        <div key={col.key} className="flex w-56 shrink-0 flex-col">
           <div className="mb-3 flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <span className={`h-2.5 w-2.5 rounded-full ${col.accent}`} />

@@ -2,8 +2,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWhatsApp, toE164Nigeria } from "@/lib/comms";
 import type { OrderStatus } from "@/lib/format";
 
-// The message a customer gets at each pipeline stage.
-const STAGE_MESSAGE: Record<OrderStatus, (name: string, biz: string) => string> = {
+// The message a customer gets at a stage. Stages NOT listed here (e.g. "contacted",
+// which is an internal marker) send nothing.
+const STAGE_MESSAGE: Partial<Record<OrderStatus, (name: string, biz: string) => string>> = {
   collected: (n, b) => `Hi ${n}, we've received your clothes at ${b}. We'll keep you posted as we go. Thank you!`,
   processing: (n, b) => `Hi ${n}, your laundry at ${b} is now being washed.`,
   ready: (n, b) => `Hi ${n}, your laundry at ${b} is ready for pickup. Thank you!`,
@@ -35,8 +36,11 @@ export async function notifyOrderStage(orderId: string, stage: OrderStatus): Pro
     const to = toE164Nigeria(cust?.phone || "");
     if (!to) return;
 
+    const build = STAGE_MESSAGE[stage];
+    if (!build) return; // stage has no customer message (e.g. "contacted")
+
     const firstName = (cust?.name || "there").split(" ")[0];
-    const content = STAGE_MESSAGE[stage](firstName, biz.name);
+    const content = build(firstName, biz.name);
 
     let status = "sent";
     let providerId: string | null = null;
