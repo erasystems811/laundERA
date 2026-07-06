@@ -58,6 +58,18 @@ export async function deleteCommsSession(sessionId: string): Promise<void> {
   await fetch(`${COMMS_URL}/v1/sessions/${sessionId}`, { method: "DELETE", headers: commsHeaders() }).catch(() => {});
 }
 
+// Request an 8-char pairing code (alternative to QR). Session must be running.
+export async function requestPairingCode(sessionId: string, phoneNumber: string): Promise<string> {
+  const res = await fetch(`${COMMS_URL}/v1/sessions/${sessionId}/pairing-code`, {
+    method: "POST",
+    headers: commsHeaders(),
+    body: JSON.stringify({ phoneNumber }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { code?: string; error?: string; message?: string };
+  if (!res.ok || !data.code) throw new Error(data.message || data.error || `Comms pairing error ${res.status}`);
+  return data.code;
+}
+
 export function commsWsUrl(sessionId: string): string {
   const key = process.env.COMMS_API_KEY;
   const ws = COMMS_URL.replace(/^http/, "ws");

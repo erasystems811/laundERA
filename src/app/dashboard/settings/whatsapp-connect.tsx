@@ -10,6 +10,9 @@ export function WhatsAppConnect({ defaultNumber }: { defaultNumber: string }) {
   const [number, setNumber] = useState(defaultNumber);
   const [qrSrc, setQrSrc] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"qr" | "code">("qr");
+  const [pairCode, setPairCode] = useState<string | null>(null);
+  const [codeErr, setCodeErr] = useState<string | null>(null);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -41,7 +44,20 @@ export function WhatsAppConnect({ defaultNumber }: { defaultNumber: string }) {
     setBusy(false);
     if (r.error) { setState((s) => ({ ...s, status: "connecting", error: r.error })); return; }
     setState({ status: "connecting", qr: null });
+    setMode("qr");
+    setPairCode(null);
     refresh();
+  }
+
+  async function getCode() {
+    setMode("code");
+    setPairCode(null);
+    setCodeErr(null);
+    setBusy(true);
+    const r = await fetch("/api/whatsapp/pairing-code", { method: "POST" }).then((x) => x.json()).catch(() => ({ error: "Could not get code" }));
+    setBusy(false);
+    if (r.code) setPairCode(r.code);
+    else setCodeErr(r.error || "Could not get code — try the QR");
   }
 
   async function disconnect() {
@@ -50,6 +66,8 @@ export function WhatsAppConnect({ defaultNumber }: { defaultNumber: string }) {
     setBusy(false);
     setState({ status: "idle" });
     setQrSrc(null);
+    setPairCode(null);
+    setMode("qr");
   }
 
   return (
@@ -70,20 +88,38 @@ export function WhatsAppConnect({ defaultNumber }: { defaultNumber: string }) {
         </div>
       ) : state.status === "connecting" ? (
         <div className="flex flex-col items-center gap-3">
-          {qrSrc ? (
+          {mode === "qr" ? (
+            qrSrc ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrSrc} alt="WhatsApp QR" className="h-56 w-56 rounded-xl bg-white p-2" />
+                <div className="text-center text-xs text-muted">
+                  <p className="font-medium text-ink">Scan with WhatsApp</p>
+                  <p className="mt-1">WhatsApp → <b>Linked Devices</b> → <b>Link a device</b> → scan this.</p>
+                </div>
+              </>
+            ) : state.error ? (
+              <p className="rounded-lg bg-red-500/5 px-3 py-2 text-center text-sm text-red-500">{state.error}</p>
+            ) : (
+              <p className="py-8 text-sm text-muted">Preparing your QR…</p>
+            )
+          ) : pairCode ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrSrc} alt="WhatsApp QR" className="h-56 w-56 rounded-xl bg-white p-2" />
+              <p className="rounded-xl bg-teal-500/10 px-5 py-3 font-mono text-2xl font-bold tracking-[0.25em] text-teal-900">{pairCode.slice(0, 4)}-{pairCode.slice(4)}</p>
               <div className="text-center text-xs text-muted">
-                <p className="font-medium text-ink">Scan with WhatsApp</p>
-                <p className="mt-1">Open WhatsApp → <b>Linked Devices</b> → <b>Link a device</b> → scan this code.</p>
+                <p className="font-medium text-ink">Enter this code in WhatsApp</p>
+                <p className="mt-1">WhatsApp → <b>Linked Devices</b> → <b>Link with phone number</b> → type the code.</p>
               </div>
             </>
-          ) : state.error ? (
-            <p className="rounded-lg bg-red-500/5 px-3 py-2 text-center text-sm text-red-500">{state.error}</p>
+          ) : codeErr ? (
+            <p className="rounded-lg bg-red-500/5 px-3 py-2 text-center text-sm text-red-500">{codeErr}</p>
           ) : (
-            <p className="py-8 text-sm text-muted">Preparing your code…</p>
+            <p className="py-8 text-sm text-muted">Getting your code…</p>
           )}
+
+          <button type="button" onClick={() => (mode === "qr" ? getCode() : setMode("qr"))} disabled={busy} className="text-xs font-semibold text-teal-700">
+            {mode === "qr" ? "Link with a code instead" : "Show QR instead"}
+          </button>
           <button type="button" onClick={disconnect} disabled={busy} className="text-xs font-medium text-muted">Cancel</button>
         </div>
       ) : (
