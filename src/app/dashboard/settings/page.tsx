@@ -6,6 +6,7 @@ import { BusinessInfo } from "./business-info";
 import { MonthlyCosts } from "./monthly-costs";
 import { PaymentAccount } from "./payment-account";
 import { NotifySettings } from "./notify-settings";
+import { WhatsAppConnect } from "./whatsapp-connect";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -69,6 +70,8 @@ export default async function SettingsPage() {
             initialNumber={business?.account_number ?? ""}
             initialAccountName={business?.account_name ?? ""}
           />
+
+          <WhatsAppConnect defaultNumber={business?.whatsapp_number ?? ""} />
 
           <NotifySettings initial={business?.notify_on_ready ?? false} />
 

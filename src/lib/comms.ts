@@ -28,6 +28,42 @@ export async function sendWhatsApp(input: {
   return data;
 }
 
+function commsHeaders() {
+  const key = process.env.COMMS_API_KEY;
+  if (!key) throw new Error("COMMS_API_KEY not set");
+  return { "Content-Type": "application/json", "X-API-Key": key };
+}
+
+// Create a WhatsApp session (one connected number) for a laundry. Returns the session id.
+export async function createCommsSession(phoneNumber: string): Promise<string> {
+  const res = await fetch(`${COMMS_URL}/v1/sessions`, {
+    method: "POST",
+    headers: commsHeaders(),
+    body: JSON.stringify({ phoneNumber, role: "primary" }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string; message?: string };
+  if (!res.ok || !data.id) throw new Error(data.message || data.error || `Comms session error ${res.status}`);
+  return data.id;
+}
+
+// connected | disconnected (the only two values the client API exposes).
+export async function getCommsSessionStatus(sessionId: string): Promise<string> {
+  const res = await fetch(`${COMMS_URL}/v1/sessions/${sessionId}`, { headers: commsHeaders(), cache: "no-store" });
+  if (!res.ok) return "disconnected";
+  const data = (await res.json().catch(() => ({}))) as { status?: string };
+  return data.status || "disconnected";
+}
+
+export async function deleteCommsSession(sessionId: string): Promise<void> {
+  await fetch(`${COMMS_URL}/v1/sessions/${sessionId}`, { method: "DELETE", headers: commsHeaders() }).catch(() => {});
+}
+
+export function commsWsUrl(sessionId: string): string {
+  const key = process.env.COMMS_API_KEY;
+  const ws = COMMS_URL.replace(/^http/, "ws");
+  return `${ws}/v1/sessions/${sessionId}/qr?api_key=${key}`;
+}
+
 // Nigerian local numbers -> E.164 (+234…). Returns null if it can't be normalised.
 export function toE164Nigeria(phone: string): string | null {
   const d = (phone || "").replace(/\D/g, "");
