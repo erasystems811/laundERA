@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { NEXT_STAGES, TERMINAL_STAGES, type OrderStatus } from "@/lib/format";
+import { NEXT_STAGES, TERMINAL_STAGES, IN_STORE_STAGES, type OrderStatus } from "@/lib/format";
 import { notifyOrderStage } from "@/lib/notify";
 
 // Add more clothes to an existing order (e.g. the customer brought extra after intake).
@@ -17,10 +17,12 @@ export async function addItemsToOrder(
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
-    .select("subtotal, discount_type, discount_value")
+    .select("status, subtotal, discount_type, discount_value")
     .eq("id", orderId)
     .single();
   if (orderErr) throw orderErr;
+  // No edits once the clothes have left the shop (With Rider / Delivered / Picked Up).
+  if (!IN_STORE_STAGES.includes(order.status as OrderStatus)) return;
 
   const serviceIds = items.map((i) => i.serviceId);
   const { data: services, error: svcErr } = await supabase
@@ -63,6 +65,10 @@ export async function addItemsToOrder(
 export async function setOrderItemQuantity(orderId: string, itemId: string, quantity: number) {
   const supabase = await createClient();
 
+  const { data: order } = await supabase.from("orders").select("status, discount_type, discount_value").eq("id", orderId).single();
+  // No edits once the clothes have left the shop (With Rider / Delivered / Picked Up).
+  if (!order || !IN_STORE_STAGES.includes(order.status as OrderStatus)) return;
+
   if (quantity <= 0) {
     const { error } = await supabase.from("order_items").delete().eq("id", itemId);
     if (error) throw error;
@@ -70,8 +76,6 @@ export async function setOrderItemQuantity(orderId: string, itemId: string, quan
     const { error } = await supabase.from("order_items").update({ quantity }).eq("id", itemId);
     if (error) throw error;
   }
-
-  const { data: order } = await supabase.from("orders").select("discount_type, discount_value").eq("id", orderId).single();
   const { data: items } = await supabase.from("order_items").select("quantity, unit_price").eq("order_id", orderId);
   const subtotal = (items ?? []).reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
   let discount = 0;

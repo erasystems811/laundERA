@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isBusinessReadOnly } from "@/lib/access";
-import { formatNaira, STAGE_LABEL, type OrderStatus } from "@/lib/format";
+import { formatNaira, STAGE_LABEL, IN_STORE_STAGES, type OrderStatus } from "@/lib/format";
 import { StageTrack } from "@/components/stage-track";
 import { PageHeader } from "@/components/page-header";
 import { OrderActions } from "./order-actions";
@@ -33,14 +33,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single();
   const readOnly = isBusinessReadOnly(staff?.businesses as unknown as { status: string; expires_at: string | null } | null);
 
+  // Items can only be edited while the clothes are still in the shop (before With Rider / done).
+  const editable = !readOnly && IN_STORE_STAGES.includes(order.status as OrderStatus);
+
   const { data: items } = await supabase
     .from("order_items")
     .select("id, service_name, quantity, unit_price")
     .eq("order_id", id);
 
-  const { data: services } = readOnly
-    ? { data: [] }
-    : await supabase.from("services").select("id, name, icon, price").eq("active", true).order("name");
+  const { data: services } = editable
+    ? await supabase.from("services").select("id, name, icon, price").eq("active", true).order("name")
+    : { data: [] };
 
   const { data: payments } = await supabase
     .from("payments")
@@ -65,7 +68,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <StageTrack status={order.status as OrderStatus} />
 
             <p className="mb-2 mt-2 text-xs font-semibold uppercase tracking-wide text-muted">Items</p>
-            <OrderItemsEditor orderId={order.id} items={(items ?? []).map((i) => ({ ...i, unit_price: Number(i.unit_price) }))} readOnly={readOnly} />
+            <OrderItemsEditor orderId={order.id} items={(items ?? []).map((i) => ({ ...i, unit_price: Number(i.unit_price) }))} readOnly={!editable} />
 
             <div className="flex flex-col gap-1.5 border-t border-dashed border-ink/15 pt-4 text-sm">
               {discount > 0 && (
@@ -79,7 +82,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <div className="flex justify-between text-base font-semibold text-teal-900"><span>Balance</span><span className="font-mono tabular-nums">{formatNaira(balance)}</span></div>
             </div>
 
-            {!readOnly && (
+            {editable && (
               <div className="mt-4 border-t border-ink/10 pt-4">
                 <AddItems orderId={order.id} services={services ?? []} />
               </div>
