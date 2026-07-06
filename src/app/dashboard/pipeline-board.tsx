@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  ORDER_STAGES,
   STAGE_LABEL,
+  STAGE_PILL_CLASS,
   NEXT_STAGES,
   TERMINAL_STAGES,
+  isTerminal,
   formatNaira,
   type OrderStatus,
 } from "@/lib/format";
@@ -23,14 +24,15 @@ export type BoardOrder = {
   createdAt: string;
 };
 
-const COLUMN_ACCENT: Record<OrderStatus, string> = {
-  collected: "bg-slate-400",
-  processing: "bg-amber-400",
-  ready: "bg-violet-400",
-  in_transit: "bg-blue-400",
-  delivered: "bg-green-400",
-  picked_up: "bg-emerald-400",
-};
+// Delivered + Picked Up are both "done" — grouped into one visible column so completed
+// orders don't slide off the right edge of the board.
+const COLUMNS: { key: string; label: string; accent: string; statuses: OrderStatus[] }[] = [
+  { key: "collected", label: "Collected", accent: "bg-slate-400", statuses: ["collected"] },
+  { key: "processing", label: "Processing", accent: "bg-amber-400", statuses: ["processing"] },
+  { key: "ready", label: "Ready", accent: "bg-violet-400", statuses: ["ready"] },
+  { key: "in_transit", label: "With Rider", accent: "bg-blue-400", statuses: ["in_transit"] },
+  { key: "done", label: "Done", accent: "bg-green-400", statuses: ["delivered", "picked_up"] },
+];
 
 export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; readOnly: boolean }) {
   const [query, setQuery] = useState("");
@@ -41,9 +43,9 @@ export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; read
       )
     : orders;
 
-  const grouped = ORDER_STAGES.map((stage) => ({
-    stage,
-    orders: filtered.filter((o) => o.status === stage),
+  const grouped = COLUMNS.map((col) => ({
+    col,
+    orders: filtered.filter((o) => col.statuses.includes(o.status)),
   }));
 
   return (
@@ -68,13 +70,13 @@ export function PipelineBoard({ orders, readOnly }: { orders: BoardOrder[]; read
         )}
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {grouped.map(({ stage, orders: colOrders }) => (
-        <div key={stage} className="flex w-72 shrink-0 flex-col">
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {grouped.map(({ col, orders: colOrders }) => (
+        <div key={col.key} className="flex w-60 shrink-0 flex-col">
           <div className="mb-3 flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${COLUMN_ACCENT[stage]}`} />
-              <span className="text-sm font-semibold text-ink">{STAGE_LABEL[stage]}</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${col.accent}`} />
+              <span className="text-sm font-semibold text-ink">{col.label}</span>
             </div>
             <span className="rounded-full bg-white/50 px-2 py-0.5 text-xs font-semibold text-muted">
               {colOrders.length}
@@ -143,6 +145,11 @@ function OrderCard({ order, readOnly }: { order: BoardOrder; readOnly: boolean }
           )}
         </div>
         {order.droppedOffBy && <p className="mt-1 text-[11px] text-muted-2">Dropped by {order.droppedOffBy}</p>}
+        {isTerminal(order.status) && (
+          <span className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${STAGE_PILL_CLASS[order.status]}`}>
+            ✓ {STAGE_LABEL[order.status]}
+          </span>
+        )}
       </button>
 
       {!readOnly && nexts.length > 0 && (
