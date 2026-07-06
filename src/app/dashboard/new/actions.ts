@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOrderStage } from "@/lib/notify";
 
 export type CustomerHit = { id: string; name: string; phone: string; preferences: string | null };
 
@@ -148,6 +149,9 @@ export async function createOrder(input: CreateOrderInput) {
     to_stage: "collected",
     changed_by: user!.id,
   });
+
+  // "We've received your clothes" WhatsApp (best-effort, opt-in per business).
+  await notifyOrderStage(order.id, "collected");
 
   redirect(`/dashboard/orders/${order.id}`);
 }
